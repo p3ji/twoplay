@@ -24,16 +24,16 @@
   button{font:inherit;color:inherit;border:none;cursor:pointer;}
 
   /* ---------------- HUB ---------------- */
-  #hub{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  #hub{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
        padding:max(14px, env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom));gap:12px;
        transition:opacity .35s ease;}
   #hub.hidden{opacity:0;pointer-events:none;}
-  #hubTitle{position:absolute;top:calc(16px + env(safe-area-inset-top));left:0;right:0;text-align:center;}
+  #hubTitle{position:relative;width:100%;text-align:center;padding:0 64px;margin-bottom:auto;flex-shrink:0;margin-top:10px;}
   #hubTitle h1{margin:0;font-size:clamp(1.6rem,7vw,2.4rem);letter-spacing:.5px;color:var(--ink);
     text-shadow:0 2px 0 rgba(255,255,255,.55);}
   #hubTitle p{margin:.15rem 0 0;color:var(--ink-soft);font-size:.95rem;opacity:.85;}
 
-  #scoreboard{display:flex;align-items:center;gap:.9rem;padding:.55rem 1.1rem;}
+  #scoreboard{display:flex;align-items:center;gap:.9rem;padding:.55rem 1.1rem;flex-shrink:0;}
   .scoreSide{display:flex;align-items:center;gap:.45rem;font-weight:700;font-size:1.15rem;}
   .face{width:26px;height:26px;border-radius:7px;position:relative;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12);}
   .face::before,.face::after{content:"";position:absolute;top:9px;width:4px;height:6px;border-radius:2px;background:#2e2440;}
@@ -41,10 +41,12 @@
   .face.honey{background:var(--honey)} .face.mint{background:var(--mint)}
   #scoreDash{opacity:.5;font-weight:400;}
 
-  #gameList{display:flex;flex-direction:column;gap:10px;width:min(420px,100%);}
-  .gameCard{display:flex;align-items:center;gap:.9rem;text-align:left;width:100%;
+  #gameList{display:flex;flex-direction:column;gap:10px;width:min(420px,100%);overflow-y:auto;flex-shrink:1;padding:4px 0;touch-action:pan-y;-webkit-overflow-scrolling:touch;}
+  #gameList::-webkit-scrollbar { display: none; }
+  #gameList { -ms-overflow-style: none; scrollbar-width: none; }
+  .gameCard{display:flex;align-items:center;gap:.9rem;text-align:left;width:100%;flex:none;
     background:var(--ink);border-radius:var(--r);box-shadow:var(--shadow);padding:.85rem 1rem;
-    transition:transform .12s ease;}
+    min-height:44px;transition:transform .12s ease;touch-action:manipulation;}
   .gameCard:active{transform:scale(.97);}
   .gameCard .ico{font-size:1.7rem;width:2.4rem;text-align:center;flex:none;}
   .gameCard b{display:block;font-size:1.05rem;}
@@ -52,7 +54,7 @@
 
   #muteBtn{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;width:44px;height:44px;
     border-radius:14px;background:var(--ink);box-shadow:var(--shadow);font-size:1.2rem;display:flex;
-    align-items:center;justify-content:center;}
+    align-items:center;justify-content:center;touch-action:manipulation;z-index:2;}
 
   /* ---------------- IN-GAME HUD ---------------- */
   #hud{position:fixed;inset:0;pointer-events:none;display:none;}
@@ -110,6 +112,12 @@
       <span><b>Lantern Draw</b><span>Wait for the lantern to glow… first tap wins. Jump early, you lose.</span></span></button>
     <button class="gameCard" data-game="toe"><span class="ico">🔳</span>
       <span><b>Boxy Toe</b><span>Take turns placing villagers. Three in a row wins.</span></span></button>
+    <button class="gameCard" data-game="four"><span class="ico">🧱</span>
+      <span><b>Boxy Four</b><span>Take turns dropping villagers. Four in a row wins.</span></span></button>
+    <button class="gameCard" data-game="race"><span class="ico">🚦</span>
+      <span><b>Statue Race</b><span>Tap fast on green. Freeze on red or you'll slide back!</span></span></button>
+    <button class="gameCard" data-game="match"><span class="ico">🎴</span>
+      <span><b>Boxy Match</b><span>Flip two lanterns. Find the most matching pairs.</span></span></button>
   </div>
 </div>
 
@@ -405,8 +413,9 @@ function showBanner(winner, sub){
 /* ============================================================
    GAME MANAGER
 ============================================================ */
-let mode = 'hub';        // hub | tug | draw | toe
+let mode = 'hub';        // hub | tug | draw | toe | four | race | match
 let current = null;      // active game object
+const RAYCAST_MODES = new Set(['toe','four','match']); // shared-board, turn-based tap
 
 const games = {};        // filled below
 
@@ -717,6 +726,322 @@ games.toe = (()=>{
 })();
 
 /* ============================================================
+   GAME 4 — BOXY FOUR (connect-four)
+============================================================ */
+games.four = (()=>{
+  const COLS = 7, ROWS = 6, S = 1.05;
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const ox = -(COLS-1)*S/2, oz = -(ROWS-1)*S/2;
+
+  const tileMatA = new THREE.MeshLambertMaterial({color:0xd8bf9a});
+  const tileMatB = new THREE.MeshLambertMaterial({color:0xcbb28c});
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const t = new THREE.Mesh(new THREE.BoxGeometry(S*0.94,0.18,S*0.94), ((r+c)%2? tileMatA:tileMatB));
+    t.position.set(ox+c*S, 0.09, oz+r*S);
+    t.receiveShadow = true;
+    g.add(t);
+  }
+  // invisible tall column colliders — generous tap targets for thumbs
+  const colMat = new THREE.MeshBasicMaterial({visible:false});
+  const cols = [];
+  for(let c=0;c<COLS;c++){
+    const col = new THREE.Mesh(new THREE.BoxGeometry(S*0.98, 5, ROWS*S+0.4), colMat);
+    col.position.set(ox+c*S, 2.2, 0);
+    col.userData.col = c;
+    cols.push(col); g.add(col);
+  }
+
+  let board, turn, over, pieces, dropCol;
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+
+  function turnMsgs(){
+    if(turn==='p1') setMsgs('Your turn ▼','Waiting…', P1.css, 'var(--paper)');
+    else            setMsgs('Waiting…','Your turn ▼', 'var(--paper)', P2.css);
+  }
+  function idx(r,c){ return r*COLS+c; }
+  function lowestOpenRow(c){
+    for(let r=0;r<ROWS;r++) if(!board[idx(r,c)]) return r;
+    return -1;
+  }
+  const DIRS = [[1,0],[0,1],[1,1],[1,-1]];
+  function checkWin(r,c,p){
+    for(const [dc,dr] of DIRS){
+      let n=1;
+      for(let s=1;s<4;s++){ const rr=r+dr*s, cc=c+dc*s; if(rr<0||rr>=ROWS||cc<0||cc>=COLS||board[idx(rr,cc)]!==p) break; n++; }
+      for(let s=1;s<4;s++){ const rr=r-dr*s, cc=c-dc*s; if(rr<0||rr>=ROWS||cc<0||cc>=COLS||board[idx(rr,cc)]!==p) break; n++; }
+      if(n>=4) return true;
+    }
+    return false;
+  }
+
+  return {
+    enter(){
+      g.visible = true;
+      board = Array(COLS*ROWS).fill(null); over = false; pieces = [];
+      turn = Math.random()<0.5 ? 'p1':'p2';
+      camTarget.pos.set(0,14.5,5.6); camTarget.look.set(0,0,-0.3);
+      turnMsgs(); setCenter('');
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; pieces.forEach(p=>g.remove(p.group)); },
+    tapXY(x, y){
+      if(over) return;
+      ndc.set((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(cols)[0];
+      if(!hit) return;
+      const c = hit.object.userData.col;
+      const r = lowestOpenRow(c);
+      if(r<0) return; // column full
+
+      board[idx(r,c)] = turn;
+      AudioMod.tap(); flashAt(x,y);
+      const piece = makeBoxy(turn==='p1'?HONEY:MINT, 0.42);
+      piece.group.position.set(ox+c*S, 4.6, oz+r*S);
+      piece.group.userData.baseY = 0.22;
+      piece.group.userData.target = 0.22;
+      piece.group.rotation.y = turn==='p1' ? Math.PI : 0;
+      pieces.push(piece); g.add(piece.group);
+
+      if(checkWin(r,c,turn)){
+        over = true;
+        popConfetti(ox+c*S, 3, oz+r*S, 50);
+        const w = turn;
+        setTimeout(()=>showBanner(w, 'Four villagers in a row.'), 700);
+      } else if(board.every(v=>v)){
+        over = true;
+        setTimeout(()=>showBanner('tie', 'Board\'s full — split the pie.'), 500);
+      } else {
+        turn = (turn==='p1') ? 'p2':'p1';
+        turnMsgs();
+      }
+    },
+    update(dt){
+      pieces.forEach(p=>{
+        const py = p.group.position.y;
+        const ty = p.group.userData.baseY;
+        p.group.position.y += (ty - py) * Math.min(1, dt*9);
+        idle(p, dt, 2.3, 0.025);
+      });
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 5 — STATUE RACE (red light / green light duel)
+============================================================ */
+games.race = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const START_Z = 4.2, FINISH_Z = -5.2, LANE_X = 1.3;
+
+  const bHoney = makeBoxy(HONEY, 0.85); bHoney.group.position.set(-LANE_X,0,START_Z);
+  bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 0;
+  const bMint = makeBoxy(MINT, 0.85); bMint.group.position.set(LANE_X,0,START_Z);
+  bMint.group.rotation.y = Math.PI; bMint.group.userData.baseY = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  // lane strips
+  const laneMat = new THREE.MeshLambertMaterial({color:0xcbb28c});
+  [-LANE_X, LANE_X].forEach(x=>{
+    const lane = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, START_Z-FINISH_Z+1.5), laneMat);
+    lane.position.set(x, -0.02, (START_Z+FINISH_Z)/2);
+    lane.receiveShadow = true; g.add(lane);
+  });
+
+  // traffic light post
+  const post = new THREE.Mesh(new THREE.BoxGeometry(0.14,2.0,0.14), new THREE.MeshLambertMaterial({color:0x6b5646}));
+  post.position.set(0, 1.0, -0.6); g.add(post);
+  const lightMat = new THREE.MeshLambertMaterial({color:0x552222, emissive:0x000000});
+  const lightBox = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.4), lightMat);
+  lightBox.position.set(0, 2.15, -0.6); lightBox.castShadow = true; g.add(lightBox);
+  const lightGlow = new THREE.PointLight(0xff5555, 0, 6);
+  lightGlow.position.set(0,2.15,-0.6); g.add(lightGlow);
+
+  // finish line
+  const finMat = new THREE.MeshLambertMaterial({color:0xf5b85c});
+  const finLine = new THREE.Mesh(new THREE.BoxGeometry(3.2,0.06,0.16), finMat);
+  finLine.position.set(0,0.03,FINISH_Z); g.add(finLine);
+
+  let phase='count', cd=null, light='red', lightT=0, over=null;
+  let progress, stumbleT, winner;
+  const TAP_STEP = 0.05, PENALTY = 0.16;
+
+  function setLight(l){
+    light = l;
+    if(l==='green'){ lightMat.emissive.setHex(0x2fae4a); lightMat.color.setHex(0x3fce5a); lightGlow.color.setHex(0x5cff77); lightGlow.intensity = 2.0; AudioMod.glow(); lightT = 1.0+Math.random()*1.6; }
+    else{ lightMat.emissive.setHex(0x552222); lightMat.color.setHex(0xc4443f); lightGlow.color.setHex(0xff5555); lightGlow.intensity = 1.4; lightT = 0.9+Math.random()*1.4; }
+  }
+
+  return {
+    enter(){
+      g.visible = true; phase='count'; over=null; winner=null;
+      progress = {p1:0, p2:0}; stumbleT = {p1:0, p2:0};
+      resetPose(bHoney); resetPose(bMint);
+      bHoney.group.position.set(-LANE_X,0,START_Z); bMint.group.position.set(LANE_X,0,START_Z);
+      bHoney.group.rotation.y = Math.PI; bMint.group.rotation.y = Math.PI;
+      setLight('red');
+      camTarget.pos.set(0,6.4,8.6); camTarget.look.set(0,0.8,-1.5);
+      setMsgs('Tap on GREEN!','Tap on GREEN!', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='play'; });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tap(player, x, y){
+      if(phase !== 'play') return;
+      if(light==='green'){
+        progress[player] = Math.min(1, progress[player]+TAP_STEP);
+        AudioMod.tap(); flashAt(x,y);
+      } else {
+        progress[player] = Math.max(0, progress[player]-PENALTY);
+        stumbleT[player] = 0.35;
+        AudioMod.lose(); flashAt(x,y);
+      }
+      if(progress[player] >= 1 && phase==='play'){
+        phase='over'; winner = player;
+        const wb = player==='p1' ? bHoney : bMint;
+        popConfetti(wb.group.position.x, 2, wb.group.position.z, 45);
+        setTimeout(()=>showBanner(winner, 'First across the line.'), 700);
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      else if(phase==='play'){
+        lightT -= dt;
+        if(lightT<=0) setLight(light==='green' ? 'red' : 'green');
+      }
+      ['p1','p2'].forEach(p=>{
+        const b = p==='p1' ? bHoney : bMint;
+        const z = START_Z + (FINISH_Z-START_Z)*progress[p];
+        b.group.position.z += (z - b.group.position.z) * Math.min(1, dt*7);
+        if(stumbleT[p] > 0){
+          stumbleT[p] -= dt;
+          b.group.rotation.x = -0.4 * Math.min(1, stumbleT[p]/0.35);
+        } else {
+          b.group.rotation.x += (0 - b.group.rotation.x) * Math.min(1, dt*6);
+        }
+        if(phase==='over'){
+          if(p===winner) cheer(b, dt); else sulk(b, dt);
+        } else {
+          idle(b, dt, light==='green' ? 9 : 2.5, light==='green' ? 0.05 : 0.015);
+        }
+      });
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 6 — BOXY MATCH (memory pairs)
+============================================================ */
+games.match = (()=>{
+  const COLS = 4, ROWS = 3, S = 1.75;
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const ox = -(COLS-1)*S/2, oz = -(ROWS-1)*S/2;
+  const N = COLS*ROWS;
+  const GEM_COLORS = [0xe4574e, 0x6ab0f0, 0xf4a6b0, 0xc9a26b, 0xa78bfa, 0x7fd858];
+
+  const tileMatA = new THREE.MeshLambertMaterial({color:0xd8bf9a});
+  const tileMatB = new THREE.MeshLambertMaterial({color:0xcbb28c});
+  const coverMat = new THREE.MeshLambertMaterial({color:INK});
+  const tiles = [], covers = [], gems = [];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const i = r*COLS+c;
+    const px = ox+c*S, pz = oz+r*S;
+    const t = new THREE.Mesh(new THREE.BoxGeometry(S*0.88,0.18,S*0.88), ((r+c)%2? tileMatA:tileMatB));
+    t.position.set(px, 0.09, pz); t.receiveShadow = true; t.userData.idx = i;
+    g.add(t); tiles.push(t);
+
+    const gem = new THREE.Mesh(new THREE.SphereGeometry(0.4,14,12), new THREE.MeshLambertMaterial({color:0xffffff}));
+    gem.position.set(px, 0.4, pz); gem.scale.setScalar(0.0001); gem.castShadow = true;
+    g.add(gem); gems.push(gem);
+
+    const cover = new THREE.Mesh(new THREE.BoxGeometry(S*0.8,0.4,S*0.8), coverMat);
+    cover.position.set(px, 0.28, pz); cover.castShadow = true;
+    g.add(cover); covers.push(cover);
+  }
+
+  let colorIdx, state, selection, phase, pauseT, turn, matchScore, pairsFound, over;
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+
+  function shuffledColors(){
+    const arr = []; GEM_COLORS.forEach(c=>{ arr.push(c,c); });
+    for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+    return arr;
+  }
+  function turnMsgs(){
+    if(turn==='p1') setMsgs('Flip two ▲','Waiting…', P1.css, 'var(--paper)');
+    else            setMsgs('Waiting…','Flip two ▲', 'var(--paper)', P2.css);
+  }
+
+  return {
+    enter(){
+      g.visible = true;
+      colorIdx = shuffledColors();
+      state = Array(N).fill('hidden');
+      selection = []; phase = 'pick'; pauseT = 0; over = false;
+      pairsFound = 0; matchScore = {p1:0, p2:0};
+      turn = Math.random()<0.5 ? 'p1':'p2';
+      for(let i=0;i<N;i++){
+        gems[i].material.color.setHex(colorIdx[i]);
+        gems[i].scale.setScalar(0.0001);
+        covers[i].visible = true; covers[i].scale.set(1,1,1);
+      }
+      camTarget.pos.set(0,12,4); camTarget.look.set(0,0,-0.2);
+      turnMsgs(); setCenter('');
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tapXY(x, y){
+      if(over || phase !== 'pick') return;
+      ndc.set((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(tiles)[0];
+      if(!hit) return;
+      const i = hit.object.userData.idx;
+      if(state[i] !== 'hidden' || selection.includes(i)) return;
+
+      state[i] = 'revealed'; covers[i].visible = false; selection.push(i);
+      AudioMod.tap(); flashAt(x,y);
+
+      if(selection.length === 2){
+        const [a,b] = selection;
+        if(colorIdx[a] === colorIdx[b]){
+          state[a] = 'matched'; state[b] = 'matched';
+          matchScore[turn]++; pairsFound++;
+          selection = [];
+          AudioMod.glow();
+          if(pairsFound === GEM_COLORS.length){
+            over = true;
+            const w = matchScore.p1===matchScore.p2 ? 'tie' : (matchScore.p1>matchScore.p2?'p1':'p2');
+            if(w!=='tie') popConfetti(0,2.5,0,50);
+            setTimeout(()=>showBanner(w, matchScore.p1+' - '+matchScore.p2+' pairs'), 600);
+          }
+        } else {
+          phase = 'pause'; pauseT = 0.85;
+        }
+      }
+    },
+    update(dt){
+      if(phase==='pause'){
+        pauseT -= dt;
+        if(pauseT <= 0){
+          selection.forEach(i=>{ state[i]='hidden'; covers[i].visible = true; });
+          selection = [];
+          turn = (turn==='p1') ? 'p2':'p1';
+          turnMsgs();
+          phase = 'pick';
+        }
+      }
+      for(let i=0;i<N;i++){
+        const targetScale = state[i]==='hidden' ? 0.0001 : 1;
+        gems[i].scale.x += (targetScale - gems[i].scale.x) * Math.min(1, dt*10);
+        gems[i].scale.y = gems[i].scale.z = gems[i].scale.x;
+        if(state[i]==='matched') gems[i].position.y = 0.4 + Math.sin(performance.now()*0.004+i)*0.06;
+      }
+    }
+  };
+})();
+
+/* ============================================================
    INPUT — split-screen touch zones
    Bottom half = Player 1 (Honey), top half = Player 2 (Mint).
    Boxy Toe uses raycasting instead (turn-based, shared board).
@@ -725,7 +1050,7 @@ window.addEventListener('pointerdown', (e)=>{
   AudioMod.ensure();
   if(mode === 'hub' || bannerEl.classList.contains('on')) return;
   if(e.target.closest('#backBtn')) return;
-  if(mode === 'toe'){ games.toe.tapXY(e.clientX, e.clientY); return; }
+  if(RAYCAST_MODES.has(mode)){ current.tapXY(e.clientX, e.clientY); return; }
   const player = (e.clientY > window.innerHeight/2) ? 'p1' : 'p2';
   current && current.tap && current.tap(player, e.clientX, e.clientY);
 }, {passive:true});
