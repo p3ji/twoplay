@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="hub-mobile.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Wobbleton — Game Night</title>
 <style>
   :root{
@@ -134,12 +135,12 @@
     <button class="gameCard" data-game="chopper"><span class="ico">🪓</span>
       <span><b>Wood Chopper</b><span>Tap exactly on the beat when the circle hits center!</span></span></button>
 
-    <button class="gameCard disabled"><span class="ico">🧱</span>
-      <span><b>Boxy Four</b><span style="color:var(--honey); font-weight:bold;"> [Coming Soon]</span><span> Take turns dropping villagers. Four in a row wins.</span></span></button>
-    <button class="gameCard disabled"><span class="ico">🚦</span>
-      <span><b>Statue Race</b><span style="color:var(--honey); font-weight:bold;"> [Coming Soon]</span><span> Tap fast on green. Freeze on red!</span></span></button>
-    <button class="gameCard disabled"><span class="ico">🎴</span>
-      <span><b>Boxy Match</b><span style="color:var(--honey); font-weight:bold;"> [Coming Soon]</span><span> Flip two lanterns. Find the most pairs.</span></span></button>
+    <button class="gameCard" data-game="four"><span class="ico">🧱</span>
+      <span><b>Boxy Four</b><span>Take turns dropping villagers. Four in a row wins.</span></span></button>
+    <button class="gameCard" data-game="race"><span class="ico">🚦</span>
+      <span><b>Statue Race</b><span>Tap fast on green. Freeze on red or you'll slide back!</span></span></button>
+    <button class="gameCard" data-game="match"><span class="ico">🎴</span>
+      <span><b>Boxy Match</b><span>Flip two lanterns. Find the most matching pairs.</span></span></button>
   </div>
 </div>
 
@@ -527,9 +528,9 @@ games.tug = (()=>{
   const lineMat1 = new THREE.MeshLambertMaterial({color:HONEY});
   const lineMat2 = new THREE.MeshLambertMaterial({color:MINT});
   const l1 = new THREE.Mesh(new THREE.BoxGeometry(3.4,0.06,0.14), lineMat1);
-  l1.position.set(0,0.03,2.2);
+  l1.position.set(0,0.18,2.2);
   const l2 = new THREE.Mesh(new THREE.BoxGeometry(3.4,0.06,0.14), lineMat2);
-  l2.position.set(0,0.03,-2.2);
+  l2.position.set(0,0.18,-2.2);
   g.add(l1); g.add(l2);
 
   let tug = 0;              // −1 mint side … +1 honey side; win at ±1
@@ -861,17 +862,17 @@ games.race = (()=>{
   const g = new THREE.Group(); g.visible = false; scene.add(g);
   const START_Z = 4.2, FINISH_Z = -5.2, LANE_X = 1.3;
 
-  const bHoney = makeBoxy(HONEY, 0.85); bHoney.group.position.set(-LANE_X,0,START_Z);
-  bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 0;
-  const bMint = makeBoxy(MINT, 0.85); bMint.group.position.set(LANE_X,0,START_Z);
-  bMint.group.rotation.y = Math.PI; bMint.group.userData.baseY = 0;
+  const bHoney = makeBoxy(HONEY, 0.85); bHoney.group.position.set(-LANE_X,0.15,START_Z);
+  bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 0.15;
+  const bMint = makeBoxy(MINT, 0.85); bMint.group.position.set(LANE_X,0.15,START_Z);
+  bMint.group.rotation.y = Math.PI; bMint.group.userData.baseY = 0.15;
   g.add(bHoney.group); g.add(bMint.group);
 
   // lane strips
   const laneMat = new THREE.MeshLambertMaterial({color:0xcbb28c});
   [-LANE_X, LANE_X].forEach(x=>{
     const lane = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, START_Z-FINISH_Z+1.5), laneMat);
-    lane.position.set(x, -0.02, (START_Z+FINISH_Z)/2);
+    lane.position.set(x, 0.15, (START_Z+FINISH_Z)/2);
     lane.receiveShadow = true; g.add(lane);
   });
 
@@ -887,7 +888,7 @@ games.race = (()=>{
   // finish line
   const finMat = new THREE.MeshLambertMaterial({color:0xf5b85c});
   const finLine = new THREE.Mesh(new THREE.BoxGeometry(3.2,0.06,0.16), finMat);
-  finLine.position.set(0,0.03,FINISH_Z); g.add(finLine);
+  finLine.position.set(0,0.18,FINISH_Z); g.add(finLine);
 
   let phase='count', cd=null, light='red', lightT=0, over=null;
   let progress, stumbleT, winner;
@@ -904,7 +905,7 @@ games.race = (()=>{
       g.visible = true; phase='count'; over=null; winner=null;
       progress = {p1:0, p2:0}; stumbleT = {p1:0, p2:0};
       resetPose(bHoney); resetPose(bMint);
-      bHoney.group.position.set(-LANE_X,0,START_Z); bMint.group.position.set(LANE_X,0,START_Z);
+      bHoney.group.position.set(-LANE_X,0.15,START_Z); bMint.group.position.set(LANE_X,0.15,START_Z);
       bHoney.group.rotation.y = Math.PI; bMint.group.rotation.y = Math.PI;
       setLight('red');
       camTarget.pos.set(0,15,4); camTarget.look.set(0,0,0);
@@ -1076,20 +1077,20 @@ games.hockey = (()=>{
   const FIELD_W = 6, FIELD_H = 10;
   
   const ice = new THREE.Mesh(new THREE.BoxGeometry(FIELD_W, 0.2, FIELD_H), new THREE.MeshLambertMaterial({color:0xdbe6f2, transparent:true, opacity:0.8}));
-  ice.position.y = 0; g.add(ice);
+  ice.position.y = 0.15; g.add(ice);
 
   const bHoney = makeBoxy(HONEY, 0.8); bHoney.group.position.set(0,0,FIELD_H/2-1);
-  bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 0.1;
+  bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 0.25;
   const bMint = makeBoxy(MINT, 0.8); bMint.group.position.set(0,0,-FIELD_H/2+1);
-  bMint.group.rotation.y = 0; bMint.group.userData.baseY = 0.1;
+  bMint.group.rotation.y = 0; bMint.group.userData.baseY = 0.25;
   g.add(bHoney.group); g.add(bMint.group);
 
   const puckMat = new THREE.MeshLambertMaterial({color:0xffffff, emissive:0xffa53d});
   const puck = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.15,16), puckMat);
-  puck.position.y = 0.2; g.add(puck);
+  puck.position.y = 0.35; g.add(puck);
 
   const puckGlow = new THREE.PointLight(0xffc46b, 1.5, 4);
-  puckGlow.position.y = 0.4; g.add(puckGlow);
+  puckGlow.position.y = 0.55; g.add(puckGlow);
 
   let puckV = new THREE.Vector2(0,0), phase = 'count', cd = null, over=false;
   let targetX = {p1:0, p2:0};
@@ -1098,8 +1099,8 @@ games.hockey = (()=>{
     enter(){
       g.visible = true; phase = 'count'; over = false;
       targetX = {p1:0, p2:0};
-      bHoney.group.position.set(0,0.1,FIELD_H/2-1); bMint.group.position.set(0,0.1,-FIELD_H/2+1);
-      puck.position.set(0, 0.2, 0); puckGlow.position.set(0,0.4,0);
+      bHoney.group.position.set(0,0.25,FIELD_H/2-1); bMint.group.position.set(0,0.25,-FIELD_H/2+1);
+      puck.position.set(0, 0.35, 0); puckGlow.position.set(0,0.55,0);
       puckV.set((Math.random()-0.5)*2, (Math.random()>0.5?1:-1)*3).normalize().multiplyScalar(4);
       camTarget.pos.set(0, 15, 6); camTarget.look.set(0, 0, 0);
       setMsgs('Defend your goal!','Defend your goal!', P1.css, P2.css);
