@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Wobbleton — Game Night</title>
+<style>
+  :root{
+    --ink:#2e2440;          /* plum-navy panels (Wobbleton family) */
+    --ink-soft:#3d3255;
+    --paper:#fff7ec;        /* warm paper text */
+    --honey:#f5b85c;        /* Player 1 */
+    --mint:#9fe3c0;         /* Player 2 */
+    --blush:#f4a6b0;
+    --shadow: 0 10px 24px rgba(46,36,64,.35);
+    --r: 18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
+  html,body{margin:0;height:100%;overflow:hidden;background:#b7c4ef;touch-action:none;}
+  body{font-family: ui-rounded, "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Trebuchet MS", Verdana, sans-serif; color:var(--paper);}
+  #scene{position:fixed;inset:0;display:block;}
+
+  .chip{background:var(--ink);border-radius:var(--r);box-shadow:var(--shadow);padding:.6rem .95rem;}
+  button{font:inherit;color:inherit;border:none;cursor:pointer;}
+
+  /* ---------------- HUB ---------------- */
+  #hub{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+       padding:max(14px, env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom));gap:12px;
+       transition:opacity .35s ease;}
+  #hub.hidden{opacity:0;pointer-events:none;}
+  #hubTitle{position:absolute;top:calc(16px + env(safe-area-inset-top));left:0;right:0;text-align:center;}
+  #hubTitle h1{margin:0;font-size:clamp(1.6rem,7vw,2.4rem);letter-spacing:.5px;color:var(--ink);
+    text-shadow:0 2px 0 rgba(255,255,255,.55);}
+  #hubTitle p{margin:.15rem 0 0;color:var(--ink-soft);font-size:.95rem;opacity:.85;}
+
+  #scoreboard{display:flex;align-items:center;gap:.9rem;padding:.55rem 1.1rem;}
+  .scoreSide{display:flex;align-items:center;gap:.45rem;font-weight:700;font-size:1.15rem;}
+  .face{width:26px;height:26px;border-radius:7px;position:relative;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12);}
+  .face::before,.face::after{content:"";position:absolute;top:9px;width:4px;height:6px;border-radius:2px;background:#2e2440;}
+  .face::before{left:6px}.face::after{right:6px}
+  .face.honey{background:var(--honey)} .face.mint{background:var(--mint)}
+  #scoreDash{opacity:.5;font-weight:400;}
+
+  #gameList{display:flex;flex-direction:column;gap:10px;width:min(420px,100%);}
+  .gameCard{display:flex;align-items:center;gap:.9rem;text-align:left;width:100%;
+    background:var(--ink);border-radius:var(--r);box-shadow:var(--shadow);padding:.85rem 1rem;
+    transition:transform .12s ease;}
+  .gameCard:active{transform:scale(.97);}
+  .gameCard .ico{font-size:1.7rem;width:2.4rem;text-align:center;flex:none;}
+  .gameCard b{display:block;font-size:1.05rem;}
+  .gameCard span{display:block;font-size:.82rem;opacity:.75;margin-top:2px;}
+
+  #muteBtn{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;width:44px;height:44px;
+    border-radius:14px;background:var(--ink);box-shadow:var(--shadow);font-size:1.2rem;display:flex;
+    align-items:center;justify-content:center;}
+
+  /* ---------------- IN-GAME HUD ---------------- */
+  #hud{position:fixed;inset:0;pointer-events:none;display:none;}
+  #hud.on{display:block;}
+  .pmsg{position:absolute;left:50%;transform:translateX(-50%);padding:.5rem 1rem;font-weight:700;
+    font-size:1rem;white-space:nowrap;transition:opacity .2s;}
+  #p1msg{bottom:calc(16px + env(safe-area-inset-bottom));}
+  #p2msg{top:calc(16px + env(safe-area-inset-top));transform:translateX(-50%) rotate(180deg);}
+  #p1msg.honeyTurn, #p2msg.mintTurn{outline:3px solid currentColor;}
+  #centermsg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-size:2.6rem;font-weight:800;color:var(--ink);text-shadow:0 2px 0 rgba(255,255,255,.6);
+    pointer-events:none;transition:opacity .25s;}
+  #backBtn{position:absolute;top:50%;left:10px;transform:translateY(-50%);pointer-events:auto;
+    width:42px;height:42px;border-radius:14px;background:var(--ink);box-shadow:var(--shadow);
+    font-size:1.15rem;display:flex;align-items:center;justify-content:center;opacity:.9;}
+
+  .zoneFlash{position:fixed;width:70px;height:70px;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle, rgba(255,247,236,.85), rgba(255,247,236,0) 70%);
+    transform:translate(-50%,-50%) scale(.4);animation:flash .35s ease-out forwards;}
+  @keyframes flash{to{transform:translate(-50%,-50%) scale(1.6);opacity:0;}}
+
+  /* ---------------- WIN BANNER ---------------- */
+  #banner{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;background:rgba(46,36,64,.35);backdrop-filter:blur(2px);}
+  #banner.on{display:flex;}
+  #bannerCard{display:flex;flex-direction:column;align-items:center;gap:.7rem;padding:1.3rem 1.7rem;text-align:center;}
+  #bannerText{font-size:1.35rem;font-weight:800;}
+  #bannerSub{font-size:.9rem;opacity:.75;margin-top:-4px;}
+  .bRow{display:flex;gap:10px;}
+  .bBtn{padding:.6rem 1.2rem;border-radius:14px;font-weight:700;font-size:1rem;box-shadow:0 4px 0 rgba(0,0,0,.18);}
+  .bBtn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.18);}
+  .bBtn.go{background:var(--honey);color:var(--ink);}
+  .bBtn.quiet{background:var(--ink-soft);color:var(--paper);}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<!-- HUB -->
+<div id="hub">
+  <div id="hubTitle">
+    <h1>Wobbleton Game Night</h1>
+    <p>Two villagers, one phone. Hold it between you.</p>
+  </div>
+  <button id="muteBtn" aria-label="Toggle sound">🔊</button>
+  <div id="scoreboard" class="chip">
+    <div class="scoreSide"><div class="face honey"></div><span id="s1">0</span></div>
+    <span id="scoreDash">wins</span>
+    <div class="scoreSide"><span id="s2">0</span><div class="face mint"></div></div>
+  </div>
+  <div id="gameList">
+    <button class="gameCard" data-game="tug"><span class="ico">🪢</span>
+      <span><b>Tug o' Rope</b><span>Tap your half as fast as you can. Pull the knot home.</span></span></button>
+    <button class="gameCard" data-game="draw"><span class="ico">🏮</span>
+      <span><b>Lantern Draw</b><span>Wait for the lantern to glow… first tap wins. Jump early, you lose.</span></span></button>
+    <button class="gameCard" data-game="toe"><span class="ico">🔳</span>
+      <span><b>Boxy Toe</b><span>Take turns placing villagers. Three in a row wins.</span></span></button>
+  </div>
+</div>
+
+<!-- IN-GAME HUD -->
+<div id="hud">
+  <button id="backBtn" aria-label="Back to games">←</button>
+  <div id="p1msg" class="pmsg chip">Honey</div>
+  <div id="p2msg" class="pmsg chip">Mint</div>
+  <div id="centermsg"></div>
+</div>
+
+<!-- WIN BANNER -->
+<div id="banner">
+  <div id="bannerCard" class="chip">
+    <div id="bannerText">Honey wins!</div>
+    <div id="bannerSub"></div>
+    <div class="bRow">
+      <button class="bBtn go" id="againBtn">Play again</button>
+      <button class="bBtn quiet" id="hubBtn">Games</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   RENDERER / SCENE
+============================================================ */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xb7c4ef);
+scene.fog = new THREE.Fog(0xb7c4ef, 18, 42);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+const camTarget = {pos:new THREE.Vector3(0,5.5,9), look:new THREE.Vector3(0,1.4,0)};
+const camLook = new THREE.Vector3(0,1.4,0);
+camera.position.copy(camTarget.pos);
+
+function resize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w,h,false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+/* Lights */
+scene.add(new THREE.HemisphereLight(0xfff3e0, 0x8f86c9, 0.85));
+const sun = new THREE.DirectionalLight(0xffe6bd, 0.9);
+sun.position.set(6,12,5);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.camera.left=-10; sun.shadow.camera.right=10;
+sun.shadow.camera.top=10; sun.shadow.camera.bottom=-10;
+scene.add(sun);
+
+/* Floating island */
+const island = new THREE.Group();
+const grass = new THREE.Mesh(
+  new THREE.CylinderGeometry(8.5, 7.6, 1.0, 24),
+  new THREE.MeshLambertMaterial({color:0xa8d8a0})
+);
+grass.position.y = -0.5; grass.receiveShadow = true;
+island.add(grass);
+const dirt = new THREE.Mesh(
+  new THREE.CylinderGeometry(7.6, 3.2, 3.4, 24),
+  new THREE.MeshLambertMaterial({color:0x8a6f5c})
+);
+dirt.position.y = -2.7;
+island.add(dirt);
+scene.add(island);
+
+/* Drifting clouds */
+const clouds = [];
+const cloudMat = new THREE.MeshLambertMaterial({color:0xffffff});
+for(let i=0;i<6;i++){
+  const g = new THREE.Group();
+  for(let j=0;j<3;j++){
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.6-j*0.35, 0.55, 0.9), cloudMat);
+    b.position.set(j*0.8-0.8, j*0.18, (j%2)*0.3);
+    g.add(b);
+  }
+  g.position.set((Math.random()*2-1)*16, 3.5+Math.random()*4, -6-Math.random()*10);
+  g.userData.speed = 0.25 + Math.random()*0.3;
+  clouds.push(g); scene.add(g);
+}
+
+/* ============================================================
+   BOXY VILLAGER — adapted from Wobbleton's boxy characters
+============================================================ */
+const INK = 0x2e2440, BLUSH = 0xf4a6b0;
+function makeBoxy(color, scale=1){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({color});
+  const dark = new THREE.MeshLambertMaterial({color:INK});
+  const blushM = new THREE.MeshLambertMaterial({color:BLUSH});
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.8,0.6), mat);
+  body.position.y = 0.75; body.castShadow = true; g.add(body);
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.78,0.7,0.7), mat);
+  head.position.y = 1.55; head.castShadow = true; g.add(head);
+
+  // face lives on head's front (+z)
+  const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.09,0.16,0.05), dark);
+  const eyeR = eyeL.clone();
+  eyeL.position.set(-0.18, 0.05, 0.36); eyeR.position.set(0.18, 0.05, 0.36);
+  head.add(eyeL); head.add(eyeR);
+  const chL = new THREE.Mesh(new THREE.BoxGeometry(0.13,0.08,0.05), blushM);
+  const chR = chL.clone();
+  chL.position.set(-0.26,-0.12,0.36); chR.position.set(0.26,-0.12,0.36);
+  head.add(chL); head.add(chR);
+
+  // arms pivot at shoulder
+  function arm(side){
+    const pivot = new THREE.Group();
+    pivot.position.set(0.55*side, 1.05, 0);
+    const a = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.55,0.2), mat);
+    a.position.y = -0.25; a.castShadow = true;
+    pivot.add(a); g.add(pivot);
+    return pivot;
+  }
+  const armL = arm(-1), armR = arm(1);
+
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.26,0.38,0.3), mat);
+  legL.position.set(-0.22,0.19,0); legL.castShadow = true;
+  const legR = legL.clone(); legR.position.x = 0.22;
+  g.add(legL); g.add(legR);
+
+  g.scale.setScalar(scale);
+  return {group:g, body, head, armL, armR, t:Math.random()*6};
+}
+
+function idle(b, dt, speed=2, amp=0.05){
+  b.t += dt;
+  b.group.position.y = b.group.userData.baseY !== undefined
+      ? b.group.userData.baseY + Math.sin(b.t*speed)*amp
+      : Math.sin(b.t*speed)*amp;
+  b.head.rotation.z = Math.sin(b.t*speed*0.7)*0.06;
+  b.armL.rotation.x = Math.sin(b.t*speed)*0.15;
+  b.armR.rotation.x = -Math.sin(b.t*speed)*0.15;
+}
+function cheer(b, dt){
+  b.t += dt;
+  const hop = Math.abs(Math.sin(b.t*6))*0.45;
+  const base = b.group.userData.baseY || 0;
+  b.group.position.y = base + hop;
+  b.armL.rotation.z = -2.6; b.armR.rotation.z = 2.6;
+  b.head.rotation.z = Math.sin(b.t*8)*0.12;
+}
+function sulk(b, dt){
+  b.t += dt;
+  b.armL.rotation.z = 0; b.armR.rotation.z = 0;
+  b.armL.rotation.x = 0.35; b.armR.rotation.x = 0.35;
+  b.head.rotation.x = 0.35;
+  b.head.rotation.z = 0;
+}
+function resetPose(b){
+  b.armL.rotation.set(0,0,0); b.armR.rotation.set(0,0,0);
+  b.head.rotation.set(0,0,0); b.group.rotation.set(0,0,0);
+}
+
+const HONEY = 0xf5b85c, MINT = 0x9fe3c0;
+
+/* Hub mascot */
+const mascot = makeBoxy(0xf4a6b0, 1.3);
+mascot.group.position.set(0,0,1.5);
+mascot.group.userData.baseY = 0;
+scene.add(mascot.group);
+
+/* ============================================================
+   CONFETTI
+============================================================ */
+const confetti = [];
+const confMats = [HONEY, MINT, 0xf4a6b0, 0xcdd7f7, 0xfff7ec].map(c=>new THREE.MeshLambertMaterial({color:c}));
+function popConfetti(x,y,z,n=40){
+  for(let i=0;i<n;i++){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.03), confMats[i%confMats.length]);
+    m.position.set(x,y,z);
+    m.userData.v = new THREE.Vector3((Math.random()-0.5)*5, 3+Math.random()*4, (Math.random()-0.5)*5);
+    m.userData.spin = new THREE.Vector3(Math.random()*8, Math.random()*8, Math.random()*8);
+    m.userData.life = 2.2;
+    confetti.push(m); scene.add(m);
+  }
+}
+function updateConfetti(dt){
+  for(let i=confetti.length-1;i>=0;i--){
+    const m = confetti[i];
+    m.userData.v.y -= 9*dt;
+    m.position.addScaledVector(m.userData.v, dt);
+    m.rotation.x += m.userData.spin.x*dt;
+    m.rotation.y += m.userData.spin.y*dt;
+    m.userData.life -= dt;
+    if(m.userData.life<=0){ scene.remove(m); confetti.splice(i,1); }
+  }
+}
+
+/* ============================================================
+   AUDIO — tiny procedural lo-fi, plus blips
+============================================================ */
+const AudioMod = (()=>{
+  let ctx=null, master=null, muted=false, loopTimer=null;
+  const scale = [0, 3, 5, 7, 10, 12, 15]; // minor pentatonic-ish, base A3
+  function ensure(){
+    if(ctx) return;
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = 0.5;
+    master.connect(ctx.destination);
+    startLoop();
+  }
+  function note(freq, dur=0.5, gain=0.08, type='triangle', when=0){
+    if(!ctx||muted) return;
+    const t = ctx.currentTime + when;
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(gain, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value = 1800;
+    o.connect(g); g.connect(f); f.connect(master);
+    o.start(t); o.stop(t+dur+0.05);
+  }
+  function startLoop(){
+    if(loopTimer) return;
+    let step = 0;
+    loopTimer = setInterval(()=>{
+      if(muted || !ctx) return;
+      if(step % 2 === 0){
+        const semi = scale[Math.floor(Math.random()*scale.length)];
+        note(220*Math.pow(2, semi/12), 0.9, 0.05);
+      }
+      if(step % 8 === 0) note(110, 1.6, 0.05, 'sine');
+      step++;
+    }, 620);
+  }
+  return {
+    ensure,
+    tap(){ ensure(); note(560+Math.random()*80, 0.09, 0.07, 'square'); },
+    win(){ ensure(); [0,4,7,12].forEach((s,i)=>note(440*Math.pow(2,s/12), 0.5, 0.09, 'triangle', i*0.12)); },
+    lose(){ ensure(); [7,3,0].forEach((s,i)=>note(220*Math.pow(2,s/12), 0.4, 0.08, 'triangle', i*0.14)); },
+    glow(){ ensure(); note(880, 0.35, 0.12, 'sine'); },
+    setMuted(m){ muted = m; },
+    isMuted(){ return muted; }
+  };
+})();
+
+/* ============================================================
+   UI REFS + HELPERS
+============================================================ */
+const $ = id => document.getElementById(id);
+const hubEl=$('hub'), hudEl=$('hud'), bannerEl=$('banner');
+const p1msg=$('p1msg'), p2msg=$('p2msg'), centermsg=$('centermsg');
+const scores = {p1:0, p2:0};
+const P1 = {name:'Honey', color:HONEY, css:'#f5b85c'};
+const P2 = {name:'Mint',  color:MINT,  css:'#9fe3c0'};
+
+function setMsgs(m1, m2, c1, c2){
+  p1msg.textContent = m1; p2msg.textContent = m2;
+  p1msg.style.color = c1 || 'var(--paper)';
+  p2msg.style.color = c2 || 'var(--paper)';
+}
+function setCenter(t){ centermsg.textContent = t; centermsg.style.opacity = t? 1:0; }
+function flashAt(x,y){
+  const d = document.createElement('div');
+  d.className = 'zoneFlash'; d.style.left = x+'px'; d.style.top = y+'px';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(), 380);
+}
+function updateScoreboard(){ $('s1').textContent = scores.p1; $('s2').textContent = scores.p2; }
+
+function showBanner(winner, sub){
+  const t = $('bannerText');
+  if(winner === 'tie'){ t.textContent = 'A cozy tie!'; t.style.color = 'var(--paper)'; }
+  else{
+    const p = winner==='p1' ? P1 : P2;
+    t.textContent = p.name + ' wins!';
+    t.style.color = p.css;
+    scores[winner]++; updateScoreboard();
+    AudioMod.win();
+  }
+  $('bannerSub').textContent = sub || '';
+  bannerEl.classList.add('on');
+}
+
+/* ============================================================
+   GAME MANAGER
+============================================================ */
+let mode = 'hub';        // hub | tug | draw | toe
+let current = null;      // active game object
+
+const games = {};        // filled below
+
+function enterGame(name){
+  hubEl.classList.add('hidden');
+  hudEl.classList.add('on');
+  bannerEl.classList.remove('on');
+  mascot.group.visible = false;
+  if(current) current.exit();
+  mode = name; current = games[name];
+  current.enter();
+}
+function backToHub(){
+  if(current){ current.exit(); current = null; }
+  mode = 'hub';
+  hudEl.classList.remove('on');
+  bannerEl.classList.remove('on');
+  hubEl.classList.remove('hidden');
+  mascot.group.visible = true;
+  camTarget.pos.set(0,5.5,9); camTarget.look.set(0,1.4,0);
+  setCenter('');
+}
+
+document.querySelectorAll('.gameCard').forEach(b=>{
+  b.addEventListener('click', ()=>{ AudioMod.tap(); enterGame(b.dataset.game); });
+});
+$('backBtn').addEventListener('click', ()=>{ AudioMod.tap(); backToHub(); });
+$('hubBtn').addEventListener('click', ()=>{ AudioMod.tap(); backToHub(); });
+$('againBtn').addEventListener('click', ()=>{
+  AudioMod.tap(); bannerEl.classList.remove('on');
+  if(current) current.enter();
+});
+$('muteBtn').addEventListener('click', ()=>{
+  AudioMod.ensure();
+  const m = !AudioMod.isMuted();
+  AudioMod.setMuted(m);
+  $('muteBtn').textContent = m ? '🔇' : '🔊';
+});
+
+/* Shared countdown helper: returns a controller games can poll */
+function makeCountdown(onGo){
+  let t = 3.0;
+  return {
+    done:false,
+    update(dt){
+      if(this.done) return;
+      const before = Math.ceil(t);
+      t -= dt;
+      const after = Math.ceil(t);
+      if(after !== before && after > 0) AudioMod.tap();
+      if(t <= 0){ this.done = true; setCenter('GO!'); AudioMod.glow(); setTimeout(()=>{ if(mode!=='hub') setCenter(''); }, 500); onGo(); }
+      else setCenter('● '.repeat(Math.max(after,0)).trim());
+    }
+  };
+}
+
+/* ============================================================
+   GAME 1 — TUG O' ROPE
+============================================================ */
+games.tug = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const bHoney = makeBoxy(HONEY); bHoney.group.position.set(0,0,3.6);
+  bHoney.group.rotation.y = Math.PI;           // faces the knot (−z)
+  bHoney.group.userData.baseY = 0;
+  const bMint = makeBoxy(MINT); bMint.group.position.set(0,0,-3.6);
+  bMint.group.userData.baseY = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  const rope = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07,0.07,5.6,8),
+    new THREE.MeshLambertMaterial({color:0xc9a26b})
+  );
+  rope.rotation.x = Math.PI/2; rope.position.y = 1.0;
+  g.add(rope);
+
+  const knot = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.42,0.42),
+    new THREE.MeshLambertMaterial({color:0xe4574e}));
+  knot.position.y = 1.0; knot.castShadow = true;
+  g.add(knot);
+
+  // goal lines
+  const lineMat1 = new THREE.MeshLambertMaterial({color:HONEY});
+  const lineMat2 = new THREE.MeshLambertMaterial({color:MINT});
+  const l1 = new THREE.Mesh(new THREE.BoxGeometry(3.4,0.06,0.14), lineMat1);
+  l1.position.set(0,0.03,2.2);
+  const l2 = new THREE.Mesh(new THREE.BoxGeometry(3.4,0.06,0.14), lineMat2);
+  l2.position.set(0,0.03,-2.2);
+  g.add(l1); g.add(l2);
+
+  let tug = 0;              // −1 mint side … +1 honey side; win at ±1
+  let phase = 'count';      // count | play | over
+  let cd = null;
+  const PULL = 0.055, RANGE = 2.2;
+
+  return {
+    enter(){
+      g.visible = true;
+      tug = 0; phase = 'count';
+      resetPose(bHoney); resetPose(bMint);
+      bHoney.group.rotation.y = Math.PI;
+      knot.position.z = 0;
+      camTarget.pos.set(0,10,8.5); camTarget.look.set(0,0.4,0);
+      setMsgs('Tap! Tap! Tap!','Tap! Tap! Tap!', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='play'; });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tap(player, x, y){
+      if(phase !== 'play') return;
+      AudioMod.tap(); flashAt(x,y);
+      tug += (player === 'p1' ? PULL : -PULL);
+      if(Math.abs(tug) >= 1){
+        tug = Math.sign(tug);
+        phase = 'over';
+        const w = tug > 0 ? 'p1' : 'p2';
+        const wb = w==='p1' ? bHoney : bMint;
+        popConfetti(wb.group.position.x, 2, wb.group.position.z, 45);
+        setTimeout(()=>showBanner(w, 'The knot crossed the line.'), 700);
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      knot.position.z += ((tug*RANGE) - knot.position.z) * Math.min(1, dt*10);
+      const lean = tug * 0.35;
+      if(phase === 'play' || phase === 'count'){
+        // grip pose, lean with advantage
+        bHoney.armL.rotation.x = -1.2; bHoney.armR.rotation.x = -1.2;
+        bMint.armL.rotation.x = -1.2;  bMint.armR.rotation.x = -1.2;
+        bHoney.group.rotation.x = -lean*0.5;
+        bMint.group.rotation.x  = -lean*0.5;
+        idle(bHoney, dt, 10, 0.02); idle(bMint, dt, 10, 0.02);
+        bHoney.armL.rotation.x = -1.2; bHoney.armR.rotation.x = -1.2; // re-assert after idle
+        bMint.armL.rotation.x = -1.2;  bMint.armR.rotation.x = -1.2;
+      } else if(phase==='over'){
+        const winB = tug>0 ? bHoney : bMint, loseB = tug>0 ? bMint : bHoney;
+        cheer(winB, dt); sulk(loseB, dt);
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 2 — LANTERN DRAW
+============================================================ */
+games.draw = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const bHoney = makeBoxy(HONEY); bHoney.group.position.set(-1.6,0,2.6);
+  bHoney.group.rotation.y = Math.PI*0.85; bHoney.group.userData.baseY = 0;
+  const bMint = makeBoxy(MINT); bMint.group.position.set(1.6,0,-2.6);
+  bMint.group.rotation.y = -Math.PI*0.15; bMint.group.userData.baseY = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  const post = new THREE.Mesh(new THREE.BoxGeometry(0.16,2.4,0.16),
+    new THREE.MeshLambertMaterial({color:0x6b5646}));
+  post.position.y = 1.2; g.add(post);
+  const lanternMat = new THREE.MeshLambertMaterial({color:0x93755a, emissive:0x000000});
+  const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.7,0.6), lanternMat);
+  lantern.position.y = 2.6; lantern.castShadow = true; g.add(lantern);
+  const glowLight = new THREE.PointLight(0xffc46b, 0, 8);
+  glowLight.position.set(0,2.6,0); g.add(glowLight);
+
+  let phase = 'count';   // count | wait | glow | over
+  let waitT = 0, cd = null;
+
+  function finish(winner, sub){
+    phase = 'over';
+    const wb = winner==='p1' ? bHoney : bMint;
+    const lb = winner==='p1' ? bMint : bHoney;
+    wb.t = 0; lb.t = 0;
+    popConfetti(wb.group.position.x, 2, wb.group.position.z, 40);
+    games.draw._winner = winner;
+    setTimeout(()=>showBanner(winner, sub), 700);
+  }
+
+  return {
+    _winner:null,
+    enter(){
+      g.visible = true;
+      phase = 'count';
+      lanternMat.emissive.setHex(0x000000); glowLight.intensity = 0;
+      resetPose(bHoney); resetPose(bMint);
+      bHoney.group.rotation.y = Math.PI*0.85; bMint.group.rotation.y = -Math.PI*0.15;
+      camTarget.pos.set(0,5.2,8.5); camTarget.look.set(0,1.6,0);
+      setMsgs('Wait for the glow…','Wait for the glow…', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='wait'; waitT = 1.2 + Math.random()*2.8; });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tap(player, x, y){
+      if(phase === 'wait'){
+        // jumped early — opponent wins
+        AudioMod.lose(); flashAt(x,y);
+        finish(player==='p1' ? 'p2' : 'p1',
+          (player==='p1'?P1.name:P2.name)+' tapped before the glow!');
+      } else if(phase === 'glow'){
+        AudioMod.tap(); flashAt(x,y);
+        finish(player, 'Lightning reflexes.');
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd){ cd.update(dt); }
+      else if(phase==='wait'){
+        waitT -= dt;
+        if(waitT <= 0){
+          phase = 'glow';
+          lanternMat.emissive.setHex(0xffa53d);
+          glowLight.intensity = 2.2;
+          AudioMod.glow();
+          setMsgs('TAP NOW!','TAP NOW!', P1.css, P2.css);
+        }
+        idle(bHoney, dt, 3, 0.03); idle(bMint, dt, 3, 0.03);
+      }
+      else if(phase==='glow'){
+        glowLight.intensity = 2.0 + Math.sin(performance.now()*0.02)*0.5;
+        idle(bHoney, dt, 6, 0.04); idle(bMint, dt, 6, 0.04);
+      }
+      else if(phase==='over'){
+        const w = this._winner==='p1'?bHoney:bMint;
+        const l = this._winner==='p1'?bMint:bHoney;
+        cheer(w, dt); sulk(l, dt);
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 3 — BOXY TOE
+============================================================ */
+games.toe = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const tiles = [];           // 9 meshes, index r*3+c
+  const tileMatA = new THREE.MeshLambertMaterial({color:0xd8bf9a});
+  const tileMatB = new THREE.MeshLambertMaterial({color:0xcbb28c});
+  const S = 1.7;
+  for(let r=0;r<3;r++)for(let c=0;c<3;c++){
+    const t = new THREE.Mesh(new THREE.BoxGeometry(1.5,0.2,1.5), ((r+c)%2? tileMatA:tileMatB).clone());
+    t.position.set((c-1)*S, 0.1, (r-1)*S);
+    t.userData.idx = r*3+c;
+    t.receiveShadow = true;
+    tiles.push(t); g.add(t);
+  }
+
+  let board, turn, over, pieces = [];
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+
+  function turnMsgs(){
+    if(turn==='p1') setMsgs('Your turn ▲','Waiting…', P1.css, 'var(--paper)');
+    else            setMsgs('Waiting…','Your turn ▲', 'var(--paper)', P2.css);
+  }
+  const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  function winner(){
+    for(const L of LINES){
+      const [a,b,c] = L;
+      if(board[a] && board[a]===board[b] && board[b]===board[c]) return {p:board[a], line:L};
+    }
+    if(board.every(v=>v)) return {p:'tie'};
+    return null;
+  }
+
+  return {
+    enter(){
+      g.visible = true;
+      board = Array(9).fill(null); over = false;
+      turn = Math.random()<0.5 ? 'p1':'p2';
+      pieces.forEach(p=>g.remove(p.group)); pieces = [];
+      tiles.forEach(t=>t.material.emissive && t.material.emissive.setHex(0x000000));
+      camTarget.pos.set(0,11.5,3.2); camTarget.look.set(0,0,-0.2);
+      turnMsgs(); setCenter('');
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tapXY(x, y){
+      if(over) return;
+      ndc.set((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(tiles)[0];
+      if(!hit) return;
+      const idx = hit.object.userData.idx;
+      if(board[idx]) return;
+
+      board[idx] = turn;
+      AudioMod.tap(); flashAt(x,y);
+      const piece = makeBoxy(turn==='p1'?HONEY:MINT, 0.5);
+      piece.group.position.set(hit.object.position.x, 0.2, hit.object.position.z);
+      piece.group.rotation.y = turn==='p1' ? Math.PI : 0; // face its owner
+      piece.group.userData.baseY = 0.2;
+      pieces.push(piece); g.add(piece.group);
+
+      const w = winner();
+      if(w){
+        over = true;
+        if(w.p !== 'tie'){
+          w.line.forEach(i=>tiles[i].material.emissive.setHex(0x554400));
+          popConfetti(0, 2.5, 0, 50);
+          setTimeout(()=>showBanner(w.p, 'Three villagers in a row.'), 700);
+        } else {
+          setTimeout(()=>showBanner('tie', 'The board is full — split the pie.'), 500);
+        }
+      } else {
+        turn = (turn==='p1') ? 'p2':'p1';
+        turnMsgs();
+      }
+    },
+    update(dt){
+      pieces.forEach(p=>idle(p, dt, 2.5, 0.03));
+    }
+  };
+})();
+
+/* ============================================================
+   INPUT — split-screen touch zones
+   Bottom half = Player 1 (Honey), top half = Player 2 (Mint).
+   Boxy Toe uses raycasting instead (turn-based, shared board).
+============================================================ */
+window.addEventListener('pointerdown', (e)=>{
+  AudioMod.ensure();
+  if(mode === 'hub' || bannerEl.classList.contains('on')) return;
+  if(e.target.closest('#backBtn')) return;
+  if(mode === 'toe'){ games.toe.tapXY(e.clientX, e.clientY); return; }
+  const player = (e.clientY > window.innerHeight/2) ? 'p1' : 'p2';
+  current && current.tap && current.tap(player, e.clientX, e.clientY);
+}, {passive:true});
+
+['gesturestart','dblclick'].forEach(ev=>document.addEventListener(ev, e=>e.preventDefault()));
+
+/* ============================================================
+   MAIN LOOP
+============================================================ */
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  // camera glide
+  camera.position.lerp(camTarget.pos, Math.min(1, dt*3));
+  camLook.lerp(camTarget.look, Math.min(1, dt*3));
+  camera.lookAt(camLook);
+
+  // ambient world
+  island.position.y = Math.sin(performance.now()*0.0006)*0.12;
+  clouds.forEach(c=>{
+    c.position.x += c.userData.speed*dt;
+    if(c.position.x > 18) c.position.x = -18;
+  });
+  if(mode === 'hub'){
+    idle(mascot, dt, 2, 0.07);
+    mascot.armR.rotation.z = 2.4 + Math.sin(performance.now()*0.006)*0.25; // waving
+  }
+  if(current) current.update(dt);
+  updateConfetti(dt);
+
+  renderer.render(scene, camera);
+}
+tick();
+})();
+</script>
+</body>
+</html>
