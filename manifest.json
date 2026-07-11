@@ -1,0 +1,21 @@
+{
+  "name": "Wobbleton Game Night",
+  "short_name": "Game Night",
+  "description": "Two-player split-screen mini-games for a single device.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#b7c4ef",
+  "theme_color": "#2e2440",
+  "icons": [
+    {
+      "src": "hub-mobile.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "hub-mobile2.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

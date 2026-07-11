@@ -1,0 +1,40 @@
+- generic [ref=f1e3]:
+  - generic [ref=f1e4]:
+    - heading "Wobbleton Game Night" [level=1] [ref=f1e5]
+    - paragraph [ref=f1e6]: Two villagers, one phone. Hold it between you.
+  - button "Toggle sound" [ref=f1e7] [cursor=pointer]: 🔊
+  - generic [ref=f1e8]:
+    - generic [ref=f1e9]: "0"
+    - generic [ref=f1e12]: wins
+    - generic [ref=f1e13]: "0"
+  - generic [ref=f1e16]:
+    - button "🪢 Tug o' Rope Tap your half as fast as you can. Pull the knot home." [ref=f1e17] [cursor=pointer]:
+      - generic [ref=f1e18]: 🪢
+      - generic [ref=f1e19]:
+        - generic [ref=f1e20]: Tug o' Rope
+        - generic [ref=f1e21]: Tap your half as fast as you can. Pull the knot home.
+    - button "🏮 Lantern Draw Wait for the lantern to glow… first tap wins. Jump early, you lose." [ref=f1e22] [cursor=pointer]:
+      - generic [ref=f1e23]: 🏮
+      - generic [ref=f1e24]:
+        - generic [ref=f1e25]: Lantern Draw
+        - generic [ref=f1e26]: Wait for the lantern to glow… first tap wins. Jump early, you lose.
+    - button "🔳 Boxy Toe Take turns placing villagers. Three in a row wins." [ref=f1e27] [cursor=pointer]:
+      - generic [ref=f1e28]: 🔳
+      - generic [ref=f1e29]:
+        - generic [ref=f1e30]: Boxy Toe
+        - generic [ref=f1e31]: Take turns placing villagers. Three in a row wins.
+    - button "🧱 Boxy Four Take turns dropping villagers. Four in a row wins." [ref=f1e32] [cursor=pointer]:
+      - generic [ref=f1e33]: 🧱
+      - generic [ref=f1e34]:
+        - generic [ref=f1e35]: Boxy Four
+        - generic [ref=f1e36]: Take turns dropping villagers. Four in a row wins.
+    - button "🚦 Statue Race Tap fast on green. Freeze on red or you'll slide back!" [ref=f1e37] [cursor=pointer]:
+      - generic [ref=f1e38]: 🚦
+      - generic [ref=f1e39]:
+        - generic [ref=f1e40]: Statue Race
+        - generic [ref=f1e41]: Tap fast on green. Freeze on red or you'll slide back!
+    - button "🎴 Boxy Match Flip two lanterns. Find the most matching pairs." [ref=f1e42] [cursor=pointer]:
+      - generic [ref=f1e43]: 🎴
+      - generic [ref=f1e44]:
+        - generic [ref=f1e45]: Boxy Match
+        - generic [ref=f1e46]: Flip two lanterns. Find the most matching pairs.

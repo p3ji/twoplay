@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="hub-mobile.png">
 <title>Wobbleton — Game Night</title>
 <style>
   :root{
@@ -18,7 +22,7 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
   html,body{margin:0;height:100%;overflow:hidden;background:#b7c4ef;touch-action:none;}
   body{font-family: ui-rounded, "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", "Trebuchet MS", Verdana, sans-serif; color:var(--paper);}
-  #scene{position:fixed;inset:0;display:block;}
+  #scene{position:fixed;inset:0;display:block;width:100%;height:100%;}
 
   .chip{background:var(--ink);border-radius:var(--r);box-shadow:var(--shadow);padding:.6rem .95rem;}
   button{font:inherit;color:inherit;border:none;cursor:pointer;}
@@ -47,7 +51,8 @@
   .gameCard{display:flex;align-items:center;gap:.9rem;text-align:left;width:100%;flex:none;
     background:var(--ink);border-radius:var(--r);box-shadow:var(--shadow);padding:.85rem 1rem;
     min-height:44px;transition:transform .12s ease;touch-action:manipulation;}
-  .gameCard:active{transform:scale(.97);}
+  .gameCard:active:not(.disabled){transform:scale(.97);}
+  .gameCard.disabled{opacity:0.6;pointer-events:none;}
   .gameCard .ico{font-size:1.7rem;width:2.4rem;text-align:center;flex:none;}
   .gameCard b{display:block;font-size:1.05rem;}
   .gameCard span{display:block;font-size:.82rem;opacity:.75;margin-top:2px;}
@@ -99,6 +104,9 @@
     <h1>Wobbleton Game Night</h1>
     <p>Two villagers, one phone. Hold it between you.</p>
   </div>
+  <div id="installPrompt" style="display:none; background:var(--honey); color:var(--ink); padding:8px 16px; border-radius:12px; font-weight:bold; font-size:0.9rem; text-align:center; box-shadow:var(--shadow);">
+    <button id="installBtn">↓ Install App for best experience!</button>
+  </div>
   <button id="muteBtn" aria-label="Toggle sound">🔊</button>
   <div id="scoreboard" class="chip">
     <div class="scoreSide"><div class="face honey"></div><span id="s1">0</span></div>
@@ -112,12 +120,26 @@
       <span><b>Lantern Draw</b><span>Wait for the lantern to glow… first tap wins. Jump early, you lose.</span></span></button>
     <button class="gameCard" data-game="toe"><span class="ico">🔳</span>
       <span><b>Boxy Toe</b><span>Take turns placing villagers. Three in a row wins.</span></span></button>
-    <button class="gameCard" data-game="four"><span class="ico">🧱</span>
-      <span><b>Boxy Four</b><span>Take turns dropping villagers. Four in a row wins.</span></span></button>
-    <button class="gameCard" data-game="race"><span class="ico">🚦</span>
-      <span><b>Statue Race</b><span>Tap fast on green. Freeze on red or you'll slide back!</span></span></button>
-    <button class="gameCard" data-game="match"><span class="ico">🎴</span>
-      <span><b>Boxy Match</b><span>Flip two lanterns. Find the most matching pairs.</span></span></button>
+    
+    <button class="gameCard" data-game="hockey"><span class="ico">🧊</span>
+      <span><b>Frosty Pond</b><span>Slide left/right to deflect the lantern past the opponent!</span></span></button>
+    <button class="gameCard" data-game="joust"><span class="ico">🪵</span>
+      <span><b>Log Joust</b><span>Tap to lunge. Bump them off, but don't fall!</span></span></button>
+    <button class="gameCard" data-game="firefly"><span class="ico">✨</span>
+      <span><b>Firefly Catch</b><span>Tap glowing fireflies fast! Avoid the red ones!</span></span></button>
+    <button class="gameCard" data-game="balloon"><span class="ico">🎈</span>
+      <span><b>Balloon Pump</b><span>Hold to pump for points. Don't let it pop on your turn!</span></span></button>
+    <button class="gameCard" data-game="snowball"><span class="ico">⛄</span>
+      <span><b>Snowball Fight</b><span>Tap to throw exactly when the target is over them!</span></span></button>
+    <button class="gameCard" data-game="chopper"><span class="ico">🪓</span>
+      <span><b>Wood Chopper</b><span>Tap exactly on the beat when the circle hits center!</span></span></button>
+
+    <button class="gameCard disabled"><span class="ico">🧱</span>
+      <span><b>Boxy Four</b><span style="color:var(--honey); font-weight:bold;"> [Coming Soon]</span><span> Take turns dropping villagers. Four in a row wins.</span></span></button>
+    <button class="gameCard disabled"><span class="ico">🚦</span>
+      <span><b>Statue Race</b><span style="color:var(--honey); font-weight:bold;"> [Coming Soon]</span><span> Tap fast on green. Freeze on red!</span></span></button>
+    <button class="gameCard disabled"><span class="ico">🎴</span>
+      <span><b>Boxy Match</b><span style="color:var(--honey); font-weight:bold;"> [Coming Soon]</span><span> Flip two lanterns. Find the most pairs.</span></span></button>
   </div>
 </div>
 
@@ -160,7 +182,7 @@ scene.background = new THREE.Color(0xb7c4ef);
 scene.fog = new THREE.Fog(0xb7c4ef, 18, 42);
 
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-const camTarget = {pos:new THREE.Vector3(0,5.5,9), look:new THREE.Vector3(0,1.4,0)};
+const camTarget = {pos:new THREE.Vector3(0,9,9), look:new THREE.Vector3(0,1.4,0)};
 const camLook = new THREE.Vector3(0,1.4,0);
 camera.position.copy(camTarget.pos);
 
@@ -168,6 +190,11 @@ function resize(){
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w,h,false);
   camera.aspect = w/h;
+  if(w < h){
+    camera.fov = 50 * (h/w) * 0.75; // dynamic fov for portrait
+  } else {
+    camera.fov = 50;
+  }
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize); resize();
@@ -435,7 +462,7 @@ function backToHub(){
   bannerEl.classList.remove('on');
   hubEl.classList.remove('hidden');
   mascot.group.visible = true;
-  camTarget.pos.set(0,5.5,9); camTarget.look.set(0,1.4,0);
+  camTarget.pos.set(0,9,9); camTarget.look.set(0,1.4,0);
   setCenter('');
 }
 
@@ -517,7 +544,7 @@ games.tug = (()=>{
       resetPose(bHoney); resetPose(bMint);
       bHoney.group.rotation.y = Math.PI;
       knot.position.z = 0;
-      camTarget.pos.set(0,10,8.5); camTarget.look.set(0,0.4,0);
+      camTarget.pos.set(0,12,6); camTarget.look.set(0,0.4,0);
       setMsgs('Tap! Tap! Tap!','Tap! Tap! Tap!', P1.css, P2.css);
       cd = makeCountdown(()=>{ phase='play'; });
       bannerEl.classList.remove('on');
@@ -598,7 +625,7 @@ games.draw = (()=>{
       lanternMat.emissive.setHex(0x000000); glowLight.intensity = 0;
       resetPose(bHoney); resetPose(bMint);
       bHoney.group.rotation.y = Math.PI*0.85; bMint.group.rotation.y = -Math.PI*0.15;
-      camTarget.pos.set(0,5.2,8.5); camTarget.look.set(0,1.6,0);
+      camTarget.pos.set(0,11,6.5); camTarget.look.set(0,0,0);
       setMsgs('Wait for the glow…','Wait for the glow…', P1.css, P2.css);
       cd = makeCountdown(()=>{ phase='wait'; waitT = 1.2 + Math.random()*2.8; });
       bannerEl.classList.remove('on');
@@ -880,7 +907,7 @@ games.race = (()=>{
       bHoney.group.position.set(-LANE_X,0,START_Z); bMint.group.position.set(LANE_X,0,START_Z);
       bHoney.group.rotation.y = Math.PI; bMint.group.rotation.y = Math.PI;
       setLight('red');
-      camTarget.pos.set(0,6.4,8.6); camTarget.look.set(0,0.8,-1.5);
+      camTarget.pos.set(0,15,4); camTarget.look.set(0,0,0);
       setMsgs('Tap on GREEN!','Tap on GREEN!', P1.css, P2.css);
       cd = makeCountdown(()=>{ phase='play'; });
       bannerEl.classList.remove('on');
@@ -1042,17 +1069,539 @@ games.match = (()=>{
 })();
 
 /* ============================================================
+   GAME 7 — FROSTY POND (HOCKEY)
+============================================================ */
+games.hockey = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const FIELD_W = 6, FIELD_H = 10;
+  
+  const ice = new THREE.Mesh(new THREE.BoxGeometry(FIELD_W, 0.2, FIELD_H), new THREE.MeshLambertMaterial({color:0xdbe6f2, transparent:true, opacity:0.8}));
+  ice.position.y = 0; g.add(ice);
+
+  const bHoney = makeBoxy(HONEY, 0.8); bHoney.group.position.set(0,0,FIELD_H/2-1);
+  bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 0.1;
+  const bMint = makeBoxy(MINT, 0.8); bMint.group.position.set(0,0,-FIELD_H/2+1);
+  bMint.group.rotation.y = 0; bMint.group.userData.baseY = 0.1;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  const puckMat = new THREE.MeshLambertMaterial({color:0xffffff, emissive:0xffa53d});
+  const puck = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.15,16), puckMat);
+  puck.position.y = 0.2; g.add(puck);
+
+  const puckGlow = new THREE.PointLight(0xffc46b, 1.5, 4);
+  puckGlow.position.y = 0.4; g.add(puckGlow);
+
+  let puckV = new THREE.Vector2(0,0), phase = 'count', cd = null, over=false;
+  let targetX = {p1:0, p2:0};
+
+  return {
+    enter(){
+      g.visible = true; phase = 'count'; over = false;
+      targetX = {p1:0, p2:0};
+      bHoney.group.position.set(0,0.1,FIELD_H/2-1); bMint.group.position.set(0,0.1,-FIELD_H/2+1);
+      puck.position.set(0, 0.2, 0); puckGlow.position.set(0,0.4,0);
+      puckV.set((Math.random()-0.5)*2, (Math.random()>0.5?1:-1)*3).normalize().multiplyScalar(4);
+      camTarget.pos.set(0, 15, 6); camTarget.look.set(0, 0, 0);
+      setMsgs('Defend your goal!','Defend your goal!', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='play'; });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tap(player, x, y){ this.drag(player, x, y); },
+    drag(player, x, y){
+      if(phase!=='play') return;
+      const ndc = new THREE.Vector2((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+      const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObject(ice)[0];
+      if(hit){
+        targetX[player] = Math.max(-FIELD_W/2+0.5, Math.min(FIELD_W/2-0.5, hit.point.x));
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      
+      // Move paddles
+      bHoney.group.position.x += (targetX.p1 - bHoney.group.position.x) * Math.min(1, dt*12);
+      bMint.group.position.x += (targetX.p2 - bMint.group.position.x) * Math.min(1, dt*12);
+      
+      if(phase==='play'){
+        // Move puck
+        puck.position.x += puckV.x * dt;
+        puck.position.z += puckV.y * dt;
+        
+        // Wall bounce
+        if(puck.position.x < -FIELD_W/2+0.3){ puck.position.x = -FIELD_W/2+0.3; puckV.x *= -1; AudioMod.tap(); }
+        if(puck.position.x > FIELD_W/2-0.3){ puck.position.x = FIELD_W/2-0.3; puckV.x *= -1; AudioMod.tap(); }
+        
+        // Paddle collision (simple AABB/Circle)
+        const checkPaddle = (b, py) => {
+          const dx = puck.position.x - b.group.position.x;
+          const dz = puck.position.z - b.group.position.z;
+          if(Math.abs(dx) < 1.0 && Math.abs(dz) < 0.6){
+            puckV.y = py * Math.abs(puckV.y);
+            puckV.x += dx * 2; // spin
+            puckV.normalize().multiplyScalar(Math.min(9, puckV.length() + 0.3));
+            AudioMod.glow();
+          }
+        };
+        if(puckV.y > 0 && puck.position.z > FIELD_H/2-1.5) checkPaddle(bHoney, -1);
+        if(puckV.y < 0 && puck.position.z < -FIELD_H/2+1.5) checkPaddle(bMint, 1);
+        
+        // Goal
+        if(Math.abs(puck.position.z) > FIELD_H/2 + 0.5 && !over){
+          over = true; phase = 'over';
+          const winner = puck.position.z < 0 ? 'p1' : 'p2';
+          popConfetti(puck.position.x, 2, puck.position.z, 40);
+          setTimeout(()=>showBanner(winner, 'Goal!'), 500);
+        }
+      }
+      puckGlow.position.x = puck.position.x; puckGlow.position.z = puck.position.z;
+      idle(bHoney, dt, 4, 0.05); idle(bMint, dt, 4, 0.05);
+      if(phase==='over'){
+        const w = puck.position.z < 0 ? bHoney : bMint;
+        const l = puck.position.z < 0 ? bMint : bHoney;
+        cheer(w, dt); sulk(l, dt);
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 8 — LOG JOUST
+============================================================ */
+games.joust = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  
+  const log = new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,6,12), new THREE.MeshLambertMaterial({color:0x6b5646}));
+  log.rotation.x = Math.PI/2; log.position.y = 0.5; g.add(log);
+  
+  const bHoney = makeBoxy(HONEY, 0.9); bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 1.3;
+  const bMint = makeBoxy(MINT, 0.9); bMint.group.rotation.y = 0; bMint.group.userData.baseY = 1.3;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  let pos = {p1: 2, p2: -2}, v = {p1: 0, p2: 0};
+  let phase = 'count', cd = null, over = false;
+
+  return {
+    enter(){
+      g.visible = true; phase = 'count'; over = false;
+      pos = {p1: 2, p2: -2}; v = {p1: 0, p2: 0};
+      bHoney.group.position.set(0, 1.3, pos.p1); bMint.group.position.set(0, 1.3, pos.p2);
+      resetPose(bHoney); resetPose(bMint);
+      bHoney.group.rotation.y = Math.PI; bMint.group.rotation.y = 0;
+      camTarget.pos.set(6, 12, 0); camTarget.look.set(0, 0, 0);
+      setMsgs('Tap to lunge!','Tap to lunge!', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='play'; });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tap(player, x, y){
+      if(phase!=='play') return;
+      AudioMod.tap(); flashAt(x,y);
+      v[player] += (player==='p1' ? -1.8 : 1.8);
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      
+      if(phase==='play' || phase==='count'){
+        v.p1 *= 0.85; v.p2 *= 0.85; // friction
+        pos.p1 += v.p1 * dt; pos.p2 += v.p2 * dt;
+        
+        // collision
+        if(pos.p1 - pos.p2 < 1.0){
+          const mid = (pos.p1 + pos.p2) / 2;
+          const push = (v.p1 + v.p2) * 0.5; // transfer momentum
+          v.p1 = push * 0.5 + 1.0; v.p2 = push * 0.5 - 1.0; // bounce back slightly
+          pos.p1 = mid + 0.5; pos.p2 = mid - 0.5;
+          AudioMod.glow();
+        }
+        
+        bHoney.group.position.z = pos.p1; bMint.group.position.z = pos.p2;
+        
+        // fall off
+        if((pos.p1 > 3.2 || pos.p2 < -3.2) && !over){
+          over = true; phase = 'over';
+          const winner = pos.p1 > 3.2 ? 'p2' : 'p1';
+          popConfetti(0, 2, winner==='p1'?2:-2, 40);
+          setTimeout(()=>showBanner(winner, 'Knocked off the log!'), 700);
+        }
+        
+        idle(bHoney, dt, 8, 0.05); idle(bMint, dt, 8, 0.05);
+      } else if(phase==='over'){
+        if(pos.p1 > 3.2) { bHoney.group.position.y -= 5*dt; bHoney.group.rotation.x += 3*dt; }
+        else cheer(bHoney, dt);
+        
+        if(pos.p2 < -3.2) { bMint.group.position.y -= 5*dt; bMint.group.rotation.x -= 3*dt; }
+        else cheer(bMint, dt);
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 9 — FIREFLY CATCH
+============================================================ */
+games.firefly = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  RAYCAST_MODES.add('firefly');
+  
+  const flies = [];
+  for(let i=0;i<10;i++){
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.3,8,8), new THREE.MeshLambertMaterial({color:0xffd700, emissive:0xffa53d}));
+    m.visible = false; m.userData = {active:false, type:'good', t:0, side:''};
+    g.add(m); flies.push(m);
+  }
+
+  let score = {p1:0, p2:0}, phase = 'count', cd = null, over=false;
+  let spawnTimer = 0;
+
+  return {
+    enter(){
+      g.visible = true; phase = 'count'; over = false;
+      score = {p1:0, p2:0}; spawnTimer = 0;
+      flies.forEach(f=>{ f.visible=false; f.userData.active=false; });
+      camTarget.pos.set(0, 16, 2); camTarget.look.set(0, 0, 0);
+      setMsgs('0','0', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='play'; setCenter(''); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tapXY(x, y){
+      if(phase!=='play') return;
+      const ndc = new THREE.Vector2((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+      const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, camera);
+      const hits = ray.intersectObjects(flies.filter(f=>f.userData.active));
+      if(hits.length > 0){
+        const f = hits[0].object;
+        f.userData.active = false; f.visible = false;
+        AudioMod.tap(); flashAt(x,y);
+        const player = (y > window.innerHeight/2) ? 'p1' : 'p2';
+        
+        if(f.userData.type === 'bad'){
+          score[player] = Math.max(0, score[player] - 2);
+          AudioMod.lose();
+        } else {
+          score[player]++;
+        }
+        setMsgs(score.p1, score.p2, P1.css, P2.css);
+        
+        if(score[player] >= 15 && !over){
+          over = true; phase = 'over';
+          popConfetti(0, 3, player==='p1'?2:-2, 50);
+          setTimeout(()=>showBanner(player, 'Caught 15 fireflies!'), 500);
+        }
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      
+      if(phase==='play'){
+        spawnTimer -= dt;
+        if(spawnTimer <= 0){
+          spawnTimer = 0.3 + Math.random()*0.5;
+          const inactive = flies.filter(f=>!f.userData.active);
+          if(inactive.length > 0){
+            const f = inactive[0];
+            f.userData.active = true; f.visible = true;
+            f.userData.t = 1.5 + Math.random()*1.5; // lifespan
+            f.userData.type = Math.random()>0.8 ? 'bad' : 'good';
+            f.material.emissive.setHex(f.userData.type==='bad' ? 0xff0000 : 0xffa53d);
+            f.material.color.setHex(f.userData.type==='bad' ? 0xff0000 : 0xffd700);
+            
+            const side = Math.random()>0.5 ? 'p1' : 'p2';
+            f.position.set((Math.random()-0.5)*8, 0.5, (side==='p1'?1:-1)*(1 + Math.random()*4));
+          }
+        }
+        
+        flies.forEach(f=>{
+          if(f.userData.active){
+            f.userData.t -= dt;
+            f.position.y = 0.5 + Math.sin(f.userData.t*5)*0.3;
+            if(f.userData.t <= 0){ f.userData.active = false; f.visible = false; }
+          }
+        });
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 10 — BALLOON PUMP
+============================================================ */
+games.balloon = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  
+  const balloonMat = new THREE.MeshLambertMaterial({color:0xe4574e});
+  const balloon = new THREE.Mesh(new THREE.SphereGeometry(1,32,32), balloonMat);
+  balloon.position.y = 3; g.add(balloon);
+  
+  const basket = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.6,0.8), new THREE.MeshLambertMaterial({color:0x8a6f5c}));
+  basket.position.y = 1.3; g.add(basket);
+
+  let size = 1.0, pumping = null, phase = 'count', cd = null, over=false;
+  let score = {p1:0, p2:0}, turn = 'p1', popThreshold = 2.5;
+
+  return {
+    enter(){
+      g.visible = true; phase = 'count'; over = false;
+      size = 1.0; score = {p1:0, p2:0}; turn = Math.random()>0.5?'p1':'p2';
+      popThreshold = 2.0 + Math.random()*2.0;
+      balloon.scale.setScalar(size); balloon.visible = true;
+      camTarget.pos.set(0, 12, 10); camTarget.look.set(0, 2, 0);
+      setMsgs(turn==='p1'?'Your turn (Hold)':'Wait', turn==='p2'?'Your turn (Hold)':'Wait', turn==='p1'?P1.css:'var(--paper)', turn==='p2'?P2.css:'var(--paper)');
+      cd = makeCountdown(()=>{ phase='play'; });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tap(player, x, y){ if(phase==='play' && player===turn) pumping = player; },
+    release(player){
+      if(pumping === player){
+        pumping = null;
+        if(phase==='play'){
+          score[player] += Math.floor((size - 1.0)*10);
+          turn = turn==='p1'?'p2':'p1';
+          setMsgs(`Score: ${score.p1}`, `Score: ${score.p2}`, turn==='p1'?P1.css:'var(--paper)', turn==='p2'?P2.css:'var(--paper)');
+        }
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      
+      if(phase==='play' && pumping){
+        size += dt * 0.4;
+        balloon.scale.setScalar(size);
+        balloon.position.y = 3 + (size-1)*1.0;
+        
+        if(Math.random()<0.1) AudioMod.tap();
+        
+        if(size > popThreshold && !over){
+          over = true; phase = 'over';
+          balloon.visible = false;
+          AudioMod.lose();
+          popConfetti(0, balloon.position.y, 0, 80);
+          const winner = turn==='p1'?'p2':'p1'; // other player wins
+          setTimeout(()=>showBanner(winner, `${turn==='p1'?'Honey':'Mint'} popped the balloon!`), 1000);
+        }
+      } else if(phase==='play' && !pumping && size > 1.0){
+        size -= dt * 0.1; // slowly deflate if not pumping
+        balloon.scale.setScalar(size);
+        balloon.position.y = 3 + (size-1)*1.0;
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 11 — SNOWBALL FIGHT
+============================================================ */
+games.snowball = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  
+  const bHoney = makeBoxy(HONEY, 0.8); bHoney.group.position.set(0,0,4); bHoney.group.rotation.y = Math.PI;
+  const bMint = makeBoxy(MINT, 0.8); bMint.group.position.set(0,0,-4); bMint.group.rotation.y = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+  
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 0.5), new THREE.MeshLambertMaterial({color:0xaaaaaa}));
+  wall.position.y = 0.5; g.add(wall);
+
+  const targets = {
+    p1: new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 24), new THREE.MeshBasicMaterial({color:0xff0000})),
+    p2: new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 24), new THREE.MeshBasicMaterial({color:0xff0000}))
+  };
+  targets.p1.rotation.x = Math.PI/2; targets.p1.position.set(0, 0.1, 4); g.add(targets.p1);
+  targets.p2.rotation.x = Math.PI/2; targets.p2.position.set(0, 0.1, -4); g.add(targets.p2);
+
+  const snowballs = [];
+
+  let phase = 'count', cd = null, over=false;
+  let targetT = 0;
+
+  return {
+    enter(){
+      g.visible = true; phase = 'count'; over = false; targetT = 0;
+      snowballs.forEach(s=>g.remove(s)); snowballs.length = 0;
+      camTarget.pos.set(8, 12, 0); camTarget.look.set(0, 0, 0);
+      setMsgs('Tap to throw!','Tap to throw!', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='play'; setCenter(''); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; snowballs.forEach(s=>g.remove(s)); snowballs.length=0; },
+    tap(player, x, y){
+      if(phase!=='play') return;
+      AudioMod.tap(); flashAt(x,y);
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshLambertMaterial({color:0xffffff}));
+      const origin = player==='p1' ? bHoney.group.position.clone() : bMint.group.position.clone();
+      const targetPos = player==='p1' ? targets.p2.position.clone() : targets.p1.position.clone();
+      
+      origin.y += 1;
+      s.position.copy(origin);
+      
+      const dx = targetPos.x - origin.x;
+      const dz = targetPos.z - origin.z;
+      const dist = Math.sqrt(dx*dx + dz*dz);
+      const speed = 8;
+      const time = dist / speed;
+      
+      s.userData = {
+        vx: dx/time,
+        vz: dz/time,
+        vy: (0 - origin.y + 0.5 * 20 * time * time) / time, // arc
+        t: 0,
+        maxT: time,
+        owner: player
+      };
+      g.add(s); snowballs.push(s);
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      
+      if(phase==='play'){
+        targetT += dt;
+        targets.p1.position.x = Math.sin(targetT * 1.5) * 3;
+        targets.p2.position.x = Math.cos(targetT * 1.7) * 3; // slightly different speed
+        
+        for(let i=snowballs.length-1; i>=0; i--){
+          const s = snowballs[i];
+          s.position.x += s.userData.vx * dt;
+          s.position.y += s.userData.vy * dt;
+          s.position.z += s.userData.vz * dt;
+          s.userData.vy -= 20 * dt; // gravity
+          s.userData.t += dt;
+          
+          if(s.userData.t >= s.userData.maxT){
+            // hit ground
+            const targetB = s.userData.owner==='p1' ? bMint : bHoney;
+            const dist = new THREE.Vector2(s.position.x - targetB.group.position.x, s.position.z - targetB.group.position.z).length();
+            
+            if(dist < 1.0 && !over){
+              over = true; phase = 'over';
+              popConfetti(targetB.group.position.x, 2, targetB.group.position.z, 30);
+              setTimeout(()=>showBanner(s.userData.owner, 'Direct hit!'), 500);
+            }
+            
+            g.remove(s); snowballs.splice(i, 1);
+          }
+        }
+      }
+      idle(bHoney, dt, 4, 0.05); idle(bMint, dt, 4, 0.05);
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 12 — WOOD CHOPPER
+============================================================ */
+games.chopper = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  
+  const bHoney = makeBoxy(HONEY, 0.9); bHoney.group.position.set(0,0,3); bHoney.group.rotation.y = Math.PI;
+  const bMint = makeBoxy(MINT, 0.9); bMint.group.position.set(0,0,-3); bMint.group.rotation.y = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  const logMat = new THREE.MeshLambertMaterial({color:0x6b5646});
+  const logs = {
+    p1: new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,1,12), logMat),
+    p2: new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,1,12), logMat)
+  };
+  logs.p1.position.set(0,0.5,1.5); logs.p1.rotation.z = Math.PI/2; g.add(logs.p1);
+  logs.p2.position.set(0,0.5,-1.5); logs.p2.rotation.z = Math.PI/2; g.add(logs.p2);
+
+  let phase = 'count', cd = null, over=false;
+  let beatT = 0, beatInterval = 1.0, score = {p1:0, p2:0};
+
+  return {
+    enter(){
+      g.visible = true; phase = 'count'; over = false;
+      score = {p1:0, p2:0}; beatT = 0; beatInterval = 1.0;
+      camTarget.pos.set(8, 12, 0); camTarget.look.set(0, 0, 0);
+      setMsgs('Chop on the beat!','Chop on the beat!', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='play'; setCenter(''); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tap(player, x, y){
+      if(phase!=='play') return;
+      AudioMod.tap(); flashAt(x,y);
+      const b = player==='p1'?bHoney:bMint;
+      b.armR.rotation.x = -2; // chop animation
+      
+      // check timing
+      const diff = Math.abs((beatT % beatInterval) - beatInterval/2);
+      if(diff < 0.15){
+        score[player]++;
+        setMsgs(score.p1, score.p2, P1.css, P2.css);
+        popConfetti(0, 2, player==='p1'?1.5:-1.5, 10);
+        AudioMod.glow();
+        if(score[player] >= 10 && !over){
+          over = true; phase = 'over';
+          setTimeout(()=>showBanner(player, 'Timber!'), 500);
+        }
+      } else {
+        AudioMod.lose();
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      
+      if(phase==='play'){
+        beatT += dt;
+        if(beatT > beatInterval){
+          beatT -= beatInterval;
+          beatInterval = Math.max(0.4, beatInterval - 0.05); // speeds up
+          AudioMod.tap(); // metronome
+        }
+        
+        // Visual indicator scale
+        const scale = 1.0 + Math.abs((beatT % beatInterval) - beatInterval/2)*2;
+        logs.p1.scale.set(1, scale, scale);
+        logs.p2.scale.set(1, scale, scale);
+      }
+      
+      bHoney.armR.rotation.x += (0 - bHoney.armR.rotation.x) * Math.min(1, dt*10);
+      bMint.armR.rotation.x += (0 - bMint.armR.rotation.x) * Math.min(1, dt*10);
+      idle(bHoney, dt, 4, 0.05); idle(bMint, dt, 4, 0.05);
+    }
+  };
+})();
+
+/* ============================================================
    INPUT — split-screen touch zones
    Bottom half = Player 1 (Honey), top half = Player 2 (Mint).
    Boxy Toe uses raycasting instead (turn-based, shared board).
 ============================================================ */
+const activePointers = new Map();
+
 window.addEventListener('pointerdown', (e)=>{
   AudioMod.ensure();
   if(mode === 'hub' || bannerEl.classList.contains('on')) return;
   if(e.target.closest('#backBtn')) return;
-  if(RAYCAST_MODES.has(mode)){ current.tapXY(e.clientX, e.clientY); return; }
-  const player = (e.clientY > window.innerHeight/2) ? 'p1' : 'p2';
+  
+  activePointers.set(e.pointerId, (e.clientY > window.innerHeight/2) ? 'p1' : 'p2');
+  if(RAYCAST_MODES.has(mode)){ current.tapXY && current.tapXY(e.clientX, e.clientY); return; }
+  
+  const player = activePointers.get(e.pointerId);
   current && current.tap && current.tap(player, e.clientX, e.clientY);
+}, {passive:true});
+
+window.addEventListener('pointermove', (e)=>{
+  if(mode === 'hub' || bannerEl.classList.contains('on')) return;
+  if(current && current.drag){
+    const player = (e.clientY > window.innerHeight/2) ? 'p1' : 'p2';
+    current.drag(player, e.clientX, e.clientY);
+  }
+}, {passive:true});
+
+window.addEventListener('pointerup', (e)=>{
+  const player = activePointers.get(e.pointerId);
+  activePointers.delete(e.pointerId);
+  if(mode === 'hub' || bannerEl.classList.contains('on')) return;
+  if(current && current.release && player) current.release(player);
+}, {passive:true});
+
+window.addEventListener('pointercancel', (e)=>{
+  const player = activePointers.get(e.pointerId);
+  activePointers.delete(e.pointerId);
+  if(current && current.release && player) current.release(player);
 }, {passive:true});
 
 ['gesturestart','dblclick'].forEach(ev=>document.addEventListener(ev, e=>e.preventDefault()));
@@ -1086,6 +1635,40 @@ function tick(){
   renderer.render(scene, camera);
 }
 tick();
+
+// --- PWA Support ---
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(err => console.log('SW fail:', err));
+}
+let deferredPrompt;
+const installPrompt = $('installPrompt');
+const installBtn = $('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installPrompt.style.display = 'block';
+});
+
+installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      installPrompt.style.display = 'none';
+    }
+    deferredPrompt = null;
+  }
+});
+
+const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+if (isIos() && !isInStandaloneMode()) {
+  installPrompt.style.display = 'block';
+  installBtn.textContent = 'Tap Share ↑ -> Add to Home Screen';
+  installBtn.style.pointerEvents = 'none';
+}
+
 })();
 </script>
 </body>
