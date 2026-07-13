@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wobbleton-v2';
+const CACHE_NAME = 'wobbleton-v4';
 const urlsToCache = [
   './',
   './index.html',

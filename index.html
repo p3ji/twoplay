@@ -47,6 +47,8 @@
   #scoreDash{opacity:.5;font-weight:400;}
 
   #gameList{display:flex;flex-direction:column;gap:10px;width:min(420px,100%);overflow-y:auto;flex-shrink:1;padding:4px 0;touch-action:pan-y;-webkit-overflow-scrolling:touch;}
+  .listHeading{margin:6px 2px 0;font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);opacity:.85;font-weight:700;}
+  .listHeading:first-child{margin-top:0;}
   #gameList::-webkit-scrollbar { display: none; }
   #gameList { -ms-overflow-style: none; scrollbar-width: none; }
   .gameCard{display:flex;align-items:center;gap:.9rem;text-align:left;width:100%;flex:none;
@@ -63,7 +65,7 @@
     align-items:center;justify-content:center;touch-action:manipulation;z-index:2;}
 
   /* ---------------- IN-GAME HUD ---------------- */
-  #hud{position:fixed;inset:0;pointer-events:none;display:none;}
+  #hud{position:fixed;inset:0;pointer-events:none;display:none;z-index:4;}
   #hud.on{display:block;}
   .pmsg{position:absolute;left:50%;transform:translateX(-50%);padding:.5rem 1rem;font-weight:700;
     font-size:1rem;white-space:nowrap;transition:opacity .2s;}
@@ -84,7 +86,7 @@
 
   /* ---------------- WIN BANNER ---------------- */
   #banner{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
-    gap:14px;background:rgba(46,36,64,.35);backdrop-filter:blur(2px);}
+    gap:14px;background:rgba(46,36,64,.35);backdrop-filter:blur(2px);z-index:6;}
   #banner.on{display:flex;}
   #bannerCard{display:flex;flex-direction:column;align-items:center;gap:.7rem;padding:1.3rem 1.7rem;text-align:center;}
   #bannerText{font-size:1.35rem;font-weight:800;}
@@ -94,6 +96,26 @@
   .bBtn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.18);}
   .bBtn.go{background:var(--honey);color:var(--ink);}
   .bBtn.quiet{background:var(--ink-soft);color:var(--paper);}
+
+  /* ---------------- DUEL LAYER (brain games: mirrored text/grid overlay) ---------------- */
+  #duel{position:fixed;inset:0;display:flex;flex-direction:column;z-index:3;opacity:0;pointer-events:none;transition:opacity .2s;}
+  #duel.on{opacity:1;pointer-events:auto;}
+  .duelHalf{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;}
+  #duelP2{transform:rotate(180deg);}
+  .duelPrompt{font-size:clamp(1.3rem,6vw,1.8rem);font-weight:800;color:var(--ink);text-shadow:0 2px 0 rgba(255,255,255,.6);text-align:center;}
+  .duelChoices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:420px;}
+  .duelBtn{background:var(--ink);color:var(--paper);border-radius:14px;padding:.75rem 1.15rem;font-weight:800;
+    font-size:1.15rem;box-shadow:var(--shadow);min-width:72px;text-align:center;transition:background .15s,opacity .15s;}
+  .duelBtn.locked{opacity:.3;}
+  .duelBtn.correct{background:#3fae5a;color:#fff;}
+  .duelBtn.wrong{background:#e4574e;color:#fff;}
+  #duelCenter{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:3;
+    opacity:0;pointer-events:none;transition:opacity .2s;}
+  #duelCenter.on{opacity:1;pointer-events:auto;}
+  .duelGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:var(--ink);padding:14px;border-radius:var(--r);box-shadow:var(--shadow);}
+  .duelTile{width:16vw;max-width:60px;height:16vw;max-height:60px;border-radius:12px;display:flex;align-items:center;
+    justify-content:center;font-size:1.7rem;background:var(--ink-soft);transition:background .15s;}
+  .duelTile.wrongFlash{background:#e4574e;}
 </style>
 </head>
 <body>
@@ -115,13 +137,11 @@
     <div class="scoreSide"><span id="s2">0</span><div class="face mint"></div></div>
   </div>
   <div id="gameList">
+    <h3 class="listHeading">Action</h3>
     <button class="gameCard" data-game="tug"><span class="ico">🪢</span>
       <span><b>Tug o' Rope</b><span>Tap your half as fast as you can. Pull the knot home.</span></span></button>
     <button class="gameCard" data-game="draw"><span class="ico">🏮</span>
       <span><b>Lantern Draw</b><span>Wait for the lantern to glow… first tap wins. Jump early, you lose.</span></span></button>
-    <button class="gameCard" data-game="toe"><span class="ico">🔳</span>
-      <span><b>Boxy Toe</b><span>Take turns placing villagers. Three in a row wins.</span></span></button>
-    
     <button class="gameCard" data-game="hockey"><span class="ico">🧊</span>
       <span><b>Frosty Pond</b><span>Slide left/right to deflect the lantern past the opponent!</span></span></button>
     <button class="gameCard" data-game="joust"><span class="ico">🪵</span>
@@ -134,13 +154,30 @@
       <span><b>Snowball Fight</b><span>Tap to throw exactly when the target is over them!</span></span></button>
     <button class="gameCard" data-game="chopper"><span class="ico">🪓</span>
       <span><b>Wood Chopper</b><span>Tap exactly on the beat when the circle hits center!</span></span></button>
-
-    <button class="gameCard" data-game="four"><span class="ico">🧱</span>
-      <span><b>Boxy Four</b><span>Take turns dropping villagers. Four in a row wins.</span></span></button>
     <button class="gameCard" data-game="race"><span class="ico">🚦</span>
       <span><b>Statue Race</b><span>Tap fast on green. Freeze on red or you'll slide back!</span></span></button>
+    <button class="gameCard" data-game="pong"><span class="ico">🏓</span>
+      <span><b>Boxy Pong</b><span>Drag to move, tap to swing. Rally to 5!</span></span></button>
+    <button class="gameCard" data-game="slap"><span class="ico">✋</span>
+      <span><b>Red Hands</b><span>Attacker taps to slap, defender taps to dodge. Watch for feints!</span></span></button>
+
+    <h3 class="listHeading">Board</h3>
+    <button class="gameCard" data-game="toe"><span class="ico">🔳</span>
+      <span><b>Boxy Toe</b><span>Take turns placing villagers. Three in a row wins.</span></span></button>
+    <button class="gameCard" data-game="four"><span class="ico">🧱</span>
+      <span><b>Boxy Four</b><span>Take turns dropping villagers. Four in a row wins.</span></span></button>
     <button class="gameCard" data-game="match"><span class="ico">🎴</span>
       <span><b>Boxy Match</b><span>Flip two lanterns. Find the most matching pairs.</span></span></button>
+    <button class="gameCard" data-game="pool"><span class="ico">🎱</span>
+      <span><b>Pocket Pool</b><span>Drag back from the cue ball to aim, release to shoot.</span></span></button>
+    <button class="gameCard" data-game="echo"><span class="ico">🏮</span>
+      <span><b>Lantern Echo</b><span>Watch the pattern, then take turns repeating it.</span></span></button>
+
+    <h3 class="listHeading">Brain</h3>
+    <button class="gameCard" data-game="math"><span class="ico">🔢</span>
+      <span><b>Quick Math</b><span>Same sum, both sides. First correct tap wins the round.</span></span></button>
+    <button class="gameCard" data-game="odd"><span class="ico">🔍</span>
+      <span><b>Odd One Out</b><span>Spot the tile that doesn't match. First tap wins the round.</span></span></button>
   </div>
 </div>
 
@@ -163,6 +200,13 @@
     </div>
   </div>
 </div>
+
+<!-- BRAIN-GAME DUEL OVERLAY -->
+<div id="duel">
+  <div class="duelHalf" id="duelP2"></div>
+  <div class="duelHalf" id="duelP1"></div>
+</div>
+<div id="duelCenter"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -405,6 +449,7 @@ const AudioMod = (()=>{
 ============================================================ */
 const $ = id => document.getElementById(id);
 const hubEl=$('hub'), hudEl=$('hud'), bannerEl=$('banner');
+const duelEl=$('duel'), duelP1=$('duelP1'), duelP2=$('duelP2'), duelCenterEl=$('duelCenter');
 const p1msg=$('p1msg'), p2msg=$('p2msg'), centermsg=$('centermsg');
 const scores = {p1:0, p2:0};
 const P1 = {name:'Honey', color:HONEY, css:'#f5b85c'};
@@ -461,6 +506,8 @@ function backToHub(){
   mode = 'hub';
   hudEl.classList.remove('on');
   bannerEl.classList.remove('on');
+  duelEl.classList.remove('on');
+  duelCenterEl.classList.remove('on');
   hubEl.classList.remove('hidden');
   mascot.group.visible = true;
   camTarget.pos.set(0,9,9); camTarget.look.set(0,1.4,0);
@@ -498,6 +545,96 @@ function makeCountdown(onGo){
       else setCenter('● '.repeat(Math.max(after,0)).trim());
     }
   };
+}
+
+function otherP(p){ return p==='p1' ? 'p2' : 'p1'; }
+
+/* Rally scoring: first to `target` points wins. */
+function makeRally(target, onPoint, onMatch){
+  const pts = {p1:0, p2:0};
+  return {
+    pts,
+    score(p){
+      pts[p]++;
+      onPoint && onPoint(p, pts);
+      if(pts[p] >= target) onMatch && onMatch(p);
+    }
+  };
+}
+
+/* Drag-back-to-aim helper: projects screen coords onto a table/ground mesh,
+   returns the pull-back vector (aim direction is the reverse) on release. */
+function makeAimer(surfaceMesh){
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function project(x,y){
+    ndc.set((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObject(surfaceMesh)[0];
+    return hit ? hit.point.clone() : null;
+  }
+  let start=null, cur=null;
+  return {
+    down(x,y){ start = project(x,y); cur = start; },
+    move(x,y){ if(start){ const p = project(x,y); if(p) cur = p; } },
+    up(){
+      let v = null;
+      if(start && cur) v = new THREE.Vector2(start.x-cur.x, start.z-cur.z);
+      start = cur = null;
+      return v;
+    },
+    preview(){ return (start && cur) ? {from:start, to:cur} : null; },
+    active(){ return !!start; }
+  };
+}
+
+/* 2D circle-ball physics on the XZ plane (pos/v are Vector2 using x/y as x/z).
+   balls: [{pos, v, r, pocketed}]. Returns true while anything is still moving. */
+function stepBalls(balls, dt, opts){
+  const {friction=1.4, bounds, pockets=[], onPocket, onClack} = opts || {};
+  let moving = false;
+  balls.forEach(b=>{
+    if(b.pocketed) return;
+    const speed = b.v.length();
+    if(speed > 0.02){
+      moving = true;
+      const decel = Math.min(speed, friction*dt);
+      b.v.multiplyScalar(Math.max(0, speed-decel)/speed);
+      b.pos.addScaledVector(b.v, dt);
+      if(bounds){
+        if(b.pos.x < bounds.minX+b.r){ b.pos.x = bounds.minX+b.r; b.v.x *= -0.82; }
+        if(b.pos.x > bounds.maxX-b.r){ b.pos.x = bounds.maxX-b.r; b.v.x *= -0.82; }
+        if(b.pos.y < bounds.minY+b.r){ b.pos.y = bounds.minY+b.r; b.v.y *= -0.82; }
+        if(b.pos.y > bounds.maxY-b.r){ b.pos.y = bounds.maxY-b.r; b.v.y *= -0.82; }
+      }
+    } else { b.v.set(0,0); }
+  });
+  for(let i=0;i<balls.length;i++){
+    for(let j=i+1;j<balls.length;j++){
+      const a=balls[i], c=balls[j];
+      if(a.pocketed||c.pocketed) continue;
+      const dx=c.pos.x-a.pos.x, dy=c.pos.y-a.pos.y;
+      const dist=Math.hypot(dx,dy), minDist=a.r+c.r;
+      if(dist>0 && dist<minDist){
+        const nx=dx/dist, ny=dy/dist, overlap=(minDist-dist)/2;
+        a.pos.x-=nx*overlap; a.pos.y-=ny*overlap;
+        c.pos.x+=nx*overlap; c.pos.y+=ny*overlap;
+        const rel=(c.v.x-a.v.x)*nx+(c.v.y-a.v.y)*ny;
+        if(rel<0){
+          a.v.x+=nx*rel; a.v.y+=ny*rel;
+          c.v.x-=nx*rel; c.v.y-=ny*rel;
+          onClack && onClack();
+          moving = true;
+        }
+      }
+    }
+  }
+  balls.forEach(b=>{
+    if(b.pocketed) return;
+    for(const p of pockets){
+      if(Math.hypot(b.pos.x-p.x, b.pos.y-p.y) < p.r){ b.pocketed=true; onPocket && onPocket(b); break; }
+    }
+  });
+  return moving;
 }
 
 /* ============================================================
@@ -896,8 +1033,18 @@ games.race = (()=>{
 
   function setLight(l){
     light = l;
-    if(l==='green'){ lightMat.emissive.setHex(0x2fae4a); lightMat.color.setHex(0x3fce5a); lightGlow.color.setHex(0x5cff77); lightGlow.intensity = 2.0; AudioMod.glow(); lightT = 1.0+Math.random()*1.6; }
-    else{ lightMat.emissive.setHex(0x552222); lightMat.color.setHex(0xc4443f); lightGlow.color.setHex(0xff5555); lightGlow.intensity = 1.4; lightT = 0.9+Math.random()*1.4; }
+    // Colors alone (red/green) are a classic colorblind-unsafe pair and both
+    // read close in luminance to the sky background, so back them with a
+    // shape+size change and a text cue too.
+    if(l==='green'){
+      lightMat.emissive.setHex(0x2fae4a); lightMat.color.setHex(0x3fce5a); lightGlow.color.setHex(0x5cff77); lightGlow.intensity = 2.6;
+      lightBox.scale.set(1.25,1.25,1.25); AudioMod.glow(); lightT = 1.0+Math.random()*1.6;
+      setCenter('GO!'); setTimeout(()=>{ if(light==='green') setCenter(''); }, 450);
+    } else {
+      lightMat.emissive.setHex(0x7a1f1f); lightMat.color.setHex(0xe23b3b); lightGlow.color.setHex(0xff5555); lightGlow.intensity = 1.8;
+      lightBox.scale.set(1,1,1); lightT = 0.9+Math.random()*1.4;
+      setCenter('STOP'); setTimeout(()=>{ if(light==='red') setCenter(''); }, 450);
+    }
   }
 
   return {
@@ -1405,10 +1552,16 @@ games.snowball = (()=>{
   const wall = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 0.5), new THREE.MeshLambertMaterial({color:0xaaaaaa}));
   wall.position.y = 0.5; g.add(wall);
 
-  const targets = {
-    p1: new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 24), new THREE.MeshBasicMaterial({color:0xff0000})),
-    p2: new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 24), new THREE.MeshBasicMaterial({color:0xff0000}))
-  };
+  // thick bright ring backed by a slightly larger dark ring so it reads
+  // against grass, sky, or wall alike, not just against one background.
+  function makeTarget(){
+    const grp = new THREE.Group();
+    const backer = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.13, 8, 24), new THREE.MeshBasicMaterial({color:0x2e2440}));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.09, 8, 24), new THREE.MeshBasicMaterial({color:0xff2b2b}));
+    grp.add(backer); grp.add(ring);
+    return grp;
+  }
+  const targets = { p1: makeTarget(), p2: makeTarget() };
   targets.p1.rotation.x = Math.PI/2; targets.p1.position.set(0, 0.1, 4); g.add(targets.p1);
   targets.p2.rotation.x = Math.PI/2; targets.p2.position.set(0, 0.1, -4); g.add(targets.p2);
 
@@ -1431,6 +1584,10 @@ games.snowball = (()=>{
       if(phase!=='play') return;
       AudioMod.tap(); flashAt(x,y);
       const s = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshLambertMaterial({color:0xffffff}));
+      // dark backface outline so the white ball still reads against the pale sky
+      const outline = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8),
+        new THREE.MeshBasicMaterial({color:0x2e2440, side:THREE.BackSide}));
+      s.add(outline);
       const origin = player==='p1' ? bHoney.group.position.clone() : bMint.group.position.clone();
       const targetPos = player==='p1' ? targets.p2.position.clone() : targets.p1.position.clone();
       
@@ -1566,6 +1723,719 @@ games.chopper = (()=>{
 })();
 
 /* ============================================================
+   GAME 13 — BOXY PONG
+============================================================ */
+games.pong = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const TABLE_Y = 1.05, HALF_X = 1.9, HALF_Z = 3.3, REACH_X = 1.35, REACH_Z = 1.5;
+
+  const table = new THREE.Mesh(new THREE.BoxGeometry(HALF_X*2, 0.2, HALF_Z*2), new THREE.MeshLambertMaterial({color:0x3f7f5c}));
+  table.position.y = TABLE_Y - 0.1; table.receiveShadow = true; g.add(table);
+  const edgeMat = new THREE.MeshLambertMaterial({color:0xfff7ec});
+  [-HALF_Z, HALF_Z].forEach(z=>{
+    const line = new THREE.Mesh(new THREE.BoxGeometry(HALF_X*2, 0.03, 0.08), edgeMat);
+    line.position.set(0, TABLE_Y+0.01, z*0.985); g.add(line);
+  });
+  const net = new THREE.Mesh(new THREE.BoxGeometry(HALF_X*2, 0.32, 0.06), new THREE.MeshLambertMaterial({color:0x2e2440}));
+  net.position.set(0, TABLE_Y+0.16, 0); g.add(net);
+
+  const bHoney = makeBoxy(HONEY, 0.85); bHoney.group.position.set(0,0,HALF_Z+0.9); bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 0;
+  const bMint = makeBoxy(MINT, 0.85); bMint.group.position.set(0,0,-HALF_Z-0.9); bMint.group.rotation.y = 0; bMint.group.userData.baseY = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  const ballMat = new THREE.MeshLambertMaterial({color:0xffffff, emissive:0xffa53d});
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16,12,10), ballMat);
+  const ballGlow = new THREE.PointLight(0xffc46b, 1.0, 3); g.add(ballGlow);
+  g.add(ball);
+
+  const PLAYER_Z = {p1: HALF_Z+0.9, p2: -HALF_Z-0.9};
+  let paddleX = {p1:0, p2:0}, paddleTarget = {p1:0, p2:0};
+  let phase='count', cd=null, rally=null, over=false;
+  let serveOwner='p1', flight=null; // {from,to,t,dur,arcH,sender,target}
+  let bounceFlash = 0, pauseT = 0, pauseNextServer = 'p1';
+
+  function startServe(server){
+    phase='serve'; serveOwner=server;
+    ball.position.set(paddleX[server], TABLE_Y+0.6, PLAYER_Z[server]*0.94);
+    setMsgs(server==='p1'?'Tap to serve!':'Get ready…', server==='p2'?'Tap to serve!':'Get ready…', P1.css, P2.css);
+  }
+  function launch(fromPlayer, ballStart, smash){
+    const target = otherP(fromPlayer);
+    const landX = Math.max(-HALF_X+0.3, Math.min(HALF_X-0.3, paddleX[target] + (Math.random()-0.5)*1.6));
+    flight = {
+      from: ballStart.clone(),
+      to: new THREE.Vector3(landX, TABLE_Y+0.35, PLAYER_Z[target]*0.9),
+      t:0, dur: smash?0.62:0.95, arcH: smash?0.5:1.15,
+      sender: fromPlayer, target, canHit:false, hit:false
+    };
+    phase='flight';
+    setMsgs(fromPlayer==='p1'?'Nice!':'Return it!', fromPlayer==='p2'?'Nice!':'Return it!', P1.css, P2.css);
+  }
+  function pointScored(winner){
+    flight = null;
+    rally.score(winner);
+    if(phase !== 'over'){
+      phase = 'pause'; pauseT = 0.6; pauseNextServer = winner;
+    }
+  }
+
+  return {
+    enter(){
+      g.visible = true; phase='count'; over=false; flight=null; bounceFlash=0;
+      paddleX = {p1:0, p2:0}; paddleTarget = {p1:0, p2:0};
+      resetPose(bHoney); resetPose(bMint);
+      bHoney.group.position.set(0,0,PLAYER_Z.p1); bMint.group.position.set(0,0,PLAYER_Z.p2);
+      bHoney.group.rotation.y = Math.PI; bMint.group.rotation.y = 0;
+      camTarget.pos.set(0, 8.5, 8); camTarget.look.set(0, 1.2, 0);
+      rally = makeRally(5,
+        (p,pts)=>{ setMsgs('Score '+pts.p1, 'Score '+pts.p2, P1.css, P2.css); },
+        (winner)=>{
+          over=true; phase='over';
+          const wb = winner==='p1'?bHoney:bMint;
+          popConfetti(wb.group.position.x, 2, wb.group.position.z, 40);
+          setTimeout(()=>showBanner(winner, 'First to 5!'), 600);
+        });
+      setMsgs('Get ready…','Get ready…', P1.css, P2.css);
+      cd = makeCountdown(()=>{ startServe(Math.random()<0.5?'p1':'p2'); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    drag(player, x, y){
+      const ndc = new THREE.Vector2((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+      const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObject(table)[0];
+      if(hit) paddleTarget[player] = Math.max(-HALF_X+0.3, Math.min(HALF_X-0.3, hit.point.x));
+    },
+    tap(player, x, y){
+      this.drag(player, x, y);
+      if(phase==='serve' && player===serveOwner){
+        AudioMod.tap();
+        launch(serveOwner, ball.position, false);
+        return;
+      }
+      if(phase==='flight' && flight && player===flight.target && flight.canHit && !flight.hit){
+        flight.hit = true;
+        AudioMod.glow(); flashAt(x,y);
+        const b = player==='p1'?bHoney:bMint;
+        b.armR.rotation.x = -2.0;
+        const smash = ball.position.y > TABLE_Y+0.9;
+        launch(player, ball.position, smash);
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      if(phase==='pause'){
+        pauseT -= dt;
+        if(pauseT <= 0) startServe(pauseNextServer);
+      }
+
+      paddleX.p1 += (paddleTarget.p1 - paddleX.p1) * Math.min(1, dt*10);
+      paddleX.p2 += (paddleTarget.p2 - paddleX.p2) * Math.min(1, dt*10);
+      bHoney.group.position.x = paddleX.p1; bMint.group.position.x = paddleX.p2;
+
+      if(phase==='flight' && flight){
+        flight.t += dt;
+        const frac = Math.min(1, flight.t / flight.dur);
+        ball.position.lerpVectors(flight.from, flight.to, frac);
+        ball.position.y += flight.arcH * 4 * frac * (1-frac);
+        ballGlow.position.copy(ball.position);
+        const receiverZ = PLAYER_Z[flight.target];
+        flight.canHit = Math.abs(ball.position.x - paddleX[flight.target]) < REACH_X &&
+                         Math.abs(ball.position.z - receiverZ) < REACH_Z + 0.6 &&
+                         frac > 0.45;
+        if(Math.abs(ball.position.z) < 0.15 && bounceFlash<=0){ bounceFlash = 0.001; AudioMod.tap(); }
+        if(bounceFlash > -1) bounceFlash -= dt;
+        if(!flight.hit && flight.t >= flight.dur){
+          pointScored(flight.sender);
+        }
+      }
+      if(phase==='over'){
+        const w = rally.pts.p1 > rally.pts.p2 ? bHoney : bMint;
+        const l = rally.pts.p1 > rally.pts.p2 ? bMint : bHoney;
+        cheer(w, dt); sulk(l, dt);
+      } else {
+        idle(bHoney, dt, 6, 0.03); idle(bMint, dt, 6, 0.03);
+        bHoney.armR.rotation.x += (0 - bHoney.armR.rotation.x) * Math.min(1, dt*8);
+        bMint.armR.rotation.x += (0 - bMint.armR.rotation.x) * Math.min(1, dt*8);
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 14 — RED HANDS
+============================================================ */
+games.slap = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const bHoney = makeBoxy(HONEY, 1.0); bHoney.group.position.set(0,0,1.15); bHoney.group.rotation.y = Math.PI; bHoney.group.userData.baseY = 0;
+  const bMint = makeBoxy(MINT, 1.0); bMint.group.position.set(0,0,-1.15); bMint.group.rotation.y = 0; bMint.group.userData.baseY = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  const FEINT_DUR = 0.35, SLAP_WINDOW = 0.27, GRACE = 0.55;
+  let phase='count', cd=null, rally=null, over=false;
+  let attacker='p1', defender='p2';
+  let tensionGrace=0, feintActive=false, feintT=0, feintCooldown=0, feintsDone=0;
+  let strikeT=0, resolvedT=0, lastResult='';
+
+  function attackerB(){ return attacker==='p1'?bHoney:bMint; }
+  function defenderB(){ return defender==='p1'?bHoney:bMint; }
+
+  function roundMsgs(){
+    setMsgs(attacker==='p1'?'Tap to slap!':'Watch their hands…', attacker==='p2'?'Tap to slap!':'Watch their hands…', P1.css, P2.css);
+  }
+  function roundStart(){
+    phase='tension'; tensionGrace=GRACE; feintActive=false; feintT=0; feintsDone=0;
+    feintCooldown = 0.5 + Math.random()*0.8;
+    resetPose(bHoney); resetPose(bMint);
+    bHoney.group.rotation.y = Math.PI; bMint.group.rotation.y = 0;
+    roundMsgs();
+  }
+  function scoreRound(winner, reason){
+    lastResult = reason; phase='resolved'; resolvedT = 0.9;
+    rally.score(winner);
+    if(winner==='p1') popConfetti(bHoney.group.position.x, 2, bHoney.group.position.z, 20);
+    else popConfetti(bMint.group.position.x, 2, bMint.group.position.z, 20);
+    if(reason==='dodge'){ const t=attacker; attacker=defender; defender=t; }
+  }
+
+  return {
+    enter(){
+      g.visible = true; phase='count'; over=false;
+      attacker = Math.random()<0.5?'p1':'p2'; defender = otherP(attacker);
+      resetPose(bHoney); resetPose(bMint);
+      bHoney.group.rotation.y = Math.PI; bMint.group.rotation.y = 0;
+      camTarget.pos.set(0, 4.4, 5.4); camTarget.look.set(0, 1.2, 0);
+      rally = makeRally(5,
+        (p,pts)=>{ /* msgs set per-round */ },
+        (winner)=>{
+          over=true; phase='over';
+          const wb = winner==='p1'?bHoney:bMint;
+          popConfetti(wb.group.position.x, 2.2, wb.group.position.z, 45);
+          setTimeout(()=>showBanner(winner, 'First to 5 slaps!'), 500);
+        });
+      setMsgs('Get ready…','Get ready…', P1.css, P2.css);
+      cd = makeCountdown(()=>{ roundStart(); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; },
+    tap(player, x, y){
+      if(phase==='tension'){
+        if(player===defender && feintActive){
+          AudioMod.lose(); flashAt(x,y);
+          scoreRound(attacker, 'flinch');
+          setMsgs(defender==='p1'?'Flinched!':'', defender==='p2'?'Flinched!':'', '#e4574e', '#e4574e');
+          return;
+        }
+        if(player===attacker && tensionGrace<=0){
+          AudioMod.tap(); flashAt(x,y);
+          phase='strike'; strikeT=0;
+          const b = attackerB(); b.armR.rotation.x = -2.2;
+          setMsgs(attacker==='p1'?'SLAP!':'DODGE!', attacker==='p2'?'SLAP!':'DODGE!', '#e4574e', '#e4574e');
+        }
+        return;
+      }
+      if(phase==='strike' && player===defender){
+        AudioMod.glow(); flashAt(x,y);
+        const db = defenderB(); db.group.position.z += (defender==='p1'? 0.35 : -0.35);
+        scoreRound(defender, 'dodge');
+        setMsgs(defender==='p1'?'Dodged!':'', defender==='p2'?'Dodged!':'', '#3fae5a', '#3fae5a');
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+
+      if(phase==='tension'){
+        tensionGrace = Math.max(0, tensionGrace-dt);
+        const ab = attackerB();
+        if(feintActive){
+          feintT -= dt;
+          ab.armR.rotation.x = -0.75 - Math.sin((FEINT_DUR-feintT)*14)*0.15;
+          if(feintT<=0){ feintActive=false; feintsDone++; feintCooldown = 0.5+Math.random()*1.1; }
+        } else {
+          ab.armR.rotation.x += (0 - ab.armR.rotation.x) * Math.min(1, dt*8);
+          feintCooldown -= dt;
+          if(feintCooldown<=0 && feintsDone<2 && tensionGrace<=0){
+            feintActive = true; feintT = FEINT_DUR;
+          }
+        }
+      } else if(phase==='strike'){
+        strikeT += dt;
+        if(strikeT >= SLAP_WINDOW){
+          AudioMod.lose();
+          scoreRound(attacker, 'landed');
+        }
+      } else if(phase==='resolved'){
+        resolvedT -= dt;
+        if(resolvedT<=0 && phase!=='over'){
+          if(!over) roundStart();
+        }
+      } else if(phase==='over'){
+        const w = rally.pts.p1 > rally.pts.p2 ? bHoney : bMint;
+        const l = rally.pts.p1 > rally.pts.p2 ? bMint : bHoney;
+        cheer(w, dt); sulk(l, dt);
+      }
+
+      if(phase!=='over'){
+        idle(bHoney, dt, 4, 0.02); idle(bMint, dt, 4, 0.02);
+        // ease both boxies back toward their home spot (undoes a dodge lunge over time)
+        bHoney.group.position.z += (1.15 - bHoney.group.position.z) * Math.min(1, dt*6);
+        bMint.group.position.z += (-1.15 - bMint.group.position.z) * Math.min(1, dt*6);
+        if(phase!=='strike'){
+          if(attacker!=='p1') bHoney.armR.rotation.x += (0 - bHoney.armR.rotation.x) * Math.min(1, dt*8);
+          if(attacker!=='p2') bMint.armR.rotation.x += (0 - bMint.armR.rotation.x) * Math.min(1, dt*8);
+        }
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 15 — QUICK MATH (duel layer)
+============================================================ */
+games.math = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const bHoney = makeBoxy(HONEY, 1.0); bHoney.group.position.set(-1.6,0,0.4); bHoney.group.userData.baseY = 0;
+  const bMint = makeBoxy(MINT, 1.0); bMint.group.position.set(1.6,0,0.4); bMint.group.userData.baseY = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  let phase='count', cd=null, rally=null, over=false, round=0, lockedOut={p1:false,p2:false}, answer=null, pauseT=0;
+
+  function genEquation(r){
+    let a,b,op,ans;
+    if(r<3){ a=1+Math.floor(Math.random()*9); b=1+Math.floor(Math.random()*9); op='+'; ans=a+b; }
+    else if(r<6){
+      op = Math.random()<0.5?'+':'−';
+      a=4+Math.floor(Math.random()*16); b=1+Math.floor(Math.random()*Math.min(a-1,12));
+      if(op==='−'){ ans=a-b; } else ans=a+b;
+    } else {
+      op = Math.random()<0.4?'×':(Math.random()<0.5?'+':'−');
+      if(op==='×'){ a=2+Math.floor(Math.random()*8); b=2+Math.floor(Math.random()*8); ans=a*b; }
+      else { a=8+Math.floor(Math.random()*22); b=1+Math.floor(Math.random()*Math.min(a-1,20)); ans = op==='+'?a+b:a-b; }
+    }
+    return {text:`${a} ${op} ${b} = ?`, ans};
+  }
+  function wrongChoices(ans){
+    const seen = new Set([ans]), out=[];
+    let tries=0;
+    while(out.length<2 && tries<40){
+      tries++;
+      const delta = (1+Math.floor(Math.random()*6)) * (Math.random()<0.5?-1:1);
+      const v = Math.max(0, ans+delta);
+      if(!seen.has(v)){ seen.add(v); out.push(v); }
+    }
+    while(out.length<2) out.push(ans + out.length + 1);
+    return out;
+  }
+  function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+  function renderRound(){
+    const eq = genEquation(round);
+    answer = eq.ans;
+    const choices = shuffle([eq.ans, ...wrongChoices(eq.ans)]);
+    const html = `<div class="duelPrompt">${eq.text}</div><div class="duelChoices">` +
+      choices.map(c=>`<button class="duelBtn" data-choice="${c}">${c}</button>`).join('') + `</div>`;
+    duelP1.innerHTML = html; duelP2.innerHTML = html;
+  }
+  function nextRound(){
+    round++; lockedOut = {p1:false,p2:false}; phase='play';
+    renderRound();
+    setMsgs('Tap the answer!','Tap the answer!', P1.css, P2.css);
+  }
+  function resolve(winner){
+    phase='resolved';
+    [duelP1, duelP2].forEach(half=>{
+      half.querySelectorAll('.duelBtn').forEach(btn=>{
+        const v = Number(btn.dataset.choice);
+        if(v===answer) btn.classList.add('correct');
+      });
+    });
+    rally.score(winner);
+    if(phase!=='over') pauseT = 0.9;
+  }
+
+  return {
+    enter(){
+      g.visible = true; phase='count'; over=false; round=0;
+      duelEl.classList.add('on');
+      resetPose(bHoney); resetPose(bMint);
+      camTarget.pos.set(0, 9, 7); camTarget.look.set(0, 1, 0);
+      rally = makeRally(5,
+        (p,pts)=>{},
+        (winner)=>{
+          over=true; phase='over';
+          const wb = winner==='p1'?bHoney:bMint;
+          popConfetti(wb.group.position.x, 2, wb.group.position.z, 40);
+          duelEl.classList.remove('on');
+          setTimeout(()=>showBanner(winner, 'First to 5 right answers!'), 400);
+        });
+      setMsgs('Get ready…','Get ready…', P1.css, P2.css);
+      cd = makeCountdown(()=>{ nextRound(); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; duelEl.classList.remove('on'); duelP1.innerHTML=''; duelP2.innerHTML=''; },
+    tap(player, x, y){
+      if(phase!=='play' || lockedOut[player]) return;
+      const el = document.elementFromPoint(x,y);
+      const btn = el && el.closest('.duelBtn');
+      if(!btn) return;
+      const v = Number(btn.dataset.choice);
+      if(v === answer){
+        AudioMod.glow(); flashAt(x,y);
+        btn.classList.add('correct');
+        resolve(player);
+      } else {
+        AudioMod.lose(); flashAt(x,y);
+        btn.classList.add('wrong');
+        lockedOut[player] = true;
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      if(phase==='resolved'){
+        pauseT -= dt;
+        if(pauseT <= 0 && phase!=='over') nextRound();
+      }
+      if(phase==='over'){
+        const w = rally.pts.p1 > rally.pts.p2 ? bHoney : bMint;
+        const l = rally.pts.p1 > rally.pts.p2 ? bMint : bHoney;
+        cheer(w, dt); sulk(l, dt);
+      } else {
+        idle(bHoney, dt, 3, 0.03); idle(bMint, dt, 3, 0.03);
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 16 — ODD ONE OUT (duel layer, shared centered grid)
+============================================================ */
+games.odd = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const bHoney = makeBoxy(HONEY, 1.0); bHoney.group.position.set(-1.6,0,0.4); bHoney.group.userData.baseY = 0;
+  const bMint = makeBoxy(MINT, 1.0); bMint.group.position.set(1.6,0,0.4); bMint.group.userData.baseY = 0;
+  g.add(bHoney.group); g.add(bMint.group);
+
+  const PAIRS = [
+    ['🐱','🐈'], ['🍎','🍏'], ['⭐','🌟'], ['😀','😃'], ['🐶','🐕'],
+    ['🌙','🌛'], ['🧡','❤️'], ['🔴','🟠'], ['🟢','🔵'], ['🍩','🥯']
+  ];
+  const N = 16;
+  let phase='count', cd=null, rally=null, over=false, round=0, oddIdx=0, resolved=false, pauseT=0;
+  let lockedT = {p1:0, p2:0};
+
+  function renderRound(){
+    const pair = PAIRS[round % PAIRS.length];
+    const common = pair[0], odd = pair[1];
+    oddIdx = Math.floor(Math.random()*N);
+    let html = '<div class="duelGrid">';
+    for(let i=0;i<N;i++) html += `<div class="duelTile" data-idx="${i}">${i===oddIdx?odd:common}</div>`;
+    html += '</div>';
+    duelCenterEl.innerHTML = html;
+  }
+  function nextRound(){
+    round++; resolved=false; phase='play'; lockedT={p1:0,p2:0};
+    renderRound();
+    setMsgs('Find the odd one!','Find the odd one!', P1.css, P2.css);
+  }
+  function resolve(winner){
+    resolved = true; phase='resolved'; pauseT = 0.9;
+    const tile = duelCenterEl.querySelector(`.duelTile[data-idx="${oddIdx}"]`);
+    if(tile) tile.style.outline = '4px solid ' + (winner==='p1'?P1.css:P2.css);
+    rally.score(winner);
+  }
+
+  return {
+    enter(){
+      g.visible = true; phase='count'; over=false; round=0; lockedT={p1:0,p2:0};
+      duelCenterEl.classList.add('on');
+      resetPose(bHoney); resetPose(bMint);
+      camTarget.pos.set(0, 9, 7); camTarget.look.set(0, 1, 0);
+      rally = makeRally(5,
+        (p,pts)=>{},
+        (winner)=>{
+          over=true; phase='over';
+          const wb = winner==='p1'?bHoney:bMint;
+          popConfetti(wb.group.position.x, 2, wb.group.position.z, 40);
+          duelCenterEl.classList.remove('on');
+          setTimeout(()=>showBanner(winner, 'First to 5 finds!'), 400);
+        });
+      setMsgs('Get ready…','Get ready…', P1.css, P2.css);
+      cd = makeCountdown(()=>{ nextRound(); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; duelCenterEl.classList.remove('on'); duelCenterEl.innerHTML=''; },
+    tap(player, x, y){
+      if(phase!=='play' || lockedT[player]>0) return;
+      const el = document.elementFromPoint(x,y);
+      const tile = el && el.closest('.duelTile');
+      if(!tile) return;
+      const idx = Number(tile.dataset.idx);
+      if(idx === oddIdx){
+        AudioMod.glow(); flashAt(x,y);
+        resolve(player);
+      } else {
+        AudioMod.lose(); flashAt(x,y);
+        tile.classList.add('wrongFlash');
+        setTimeout(()=>tile.classList.remove('wrongFlash'), 300);
+        lockedT[player] = 1.0;
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      lockedT.p1 = Math.max(0, lockedT.p1-dt);
+      lockedT.p2 = Math.max(0, lockedT.p2-dt);
+      if(phase==='resolved'){
+        pauseT -= dt;
+        if(pauseT<=0 && phase!=='over') nextRound();
+      }
+      if(phase==='over'){
+        const w = rally.pts.p1 > rally.pts.p2 ? bHoney : bMint;
+        const l = rally.pts.p1 > rally.pts.p2 ? bMint : bHoney;
+        cheer(w, dt); sulk(l, dt);
+      } else {
+        idle(bHoney, dt, 3, 0.03); idle(bMint, dt, 3, 0.03);
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 17 — LANTERN ECHO (memory sequence, sudden-death)
+============================================================ */
+games.echo = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const PAD_COLORS = [0xe4574e, 0x6ab0f0, 0xf5b85c, 0x7fd858];
+  const PAD_X = [-2.4, -0.8, 0.8, 2.4];
+  const pads = [], glows = [];
+  PAD_COLORS.forEach((c,i)=>{
+    const mat = new THREE.MeshLambertMaterial({color:c, emissive:0x000000});
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(1.3,0.5,1.3), mat);
+    pad.position.set(PAD_X[i], 0.25, 0); pad.userData.idx = i; pad.castShadow=true; pad.receiveShadow=true;
+    g.add(pad); pads.push(pad);
+    const glow = new THREE.PointLight(c, 0, 3.2);
+    glow.position.set(PAD_X[i], 0.7, 0); g.add(glow); glows.push(glow);
+  });
+
+  let phase='count', cd=null, over=false;
+  let sequence=[], turn='p1', watchIdx=0, watchOn=false, watchT=0, repeatIdx=0, activePad=-1, litT=0, pauseT=0;
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+
+  function lightPad(i, on){
+    pads[i].material.emissive.setHex(on ? PAD_COLORS[i] : 0x000000);
+    glows[i].intensity = on ? 2.4 : 0;
+  }
+  function allOff(){ for(let i=0;i<4;i++) lightPad(i,false); }
+  function startWatch(){
+    phase='watch'; watchIdx=0; watchOn=false; watchT=0.4;
+    setMsgs('Watch the pattern…','Watch the pattern…', P1.css, P2.css);
+  }
+  function startRepeat(){
+    phase='repeat'; repeatIdx=0;
+    setMsgs(turn==='p1'?'Your turn — repeat it!':'Wait for your turn…', turn==='p2'?'Your turn — repeat it!':'Wait for your turn…', P1.css, P2.css);
+  }
+  function loseGame(loser){
+    over=true; phase='over';
+    const winner = otherP(loser);
+    popConfetti(0, 2, 0, 45);
+    setTimeout(()=>showBanner(winner, 'The pattern broke!'), 500);
+  }
+
+  return {
+    raycast: true,
+    enter(){
+      g.visible = true; phase='count'; over=false; allOff();
+      sequence = [Math.floor(Math.random()*4)];
+      turn = Math.random()<0.5 ? 'p1':'p2';
+      camTarget.pos.set(0, 8.5, 4.2); camTarget.look.set(0, 0.3, 0);
+      setMsgs('Get ready…','Get ready…', P1.css, P2.css);
+      cd = makeCountdown(()=>{ startWatch(); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; allOff(); },
+    tapXY(x, y){
+      if(phase!=='repeat') return;
+      ndc.set((x/window.innerWidth)*2-1, -(y/window.innerHeight)*2+1);
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(pads)[0];
+      if(!hit) return;
+      const idx = hit.object.userData.idx;
+      flashAt(x,y);
+      if(idx === sequence[repeatIdx]){
+        AudioMod.tap(); lightPad(idx,true); litT=0.25; activePad=idx; repeatIdx++;
+        if(repeatIdx >= sequence.length){
+          sequence.push(Math.floor(Math.random()*4));
+          turn = otherP(turn);
+          phase = 'grown'; pauseT = 0.6;
+        }
+      } else {
+        AudioMod.lose();
+        loseGame(turn);
+      }
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+      else if(phase==='watch'){
+        watchT -= dt;
+        if(watchT <= 0){
+          if(watchOn){ lightPad(sequence[watchIdx], false); watchOn=false; watchIdx++; watchT=0.18;
+            if(watchIdx >= sequence.length) startRepeat();
+          } else { lightPad(sequence[watchIdx], true); watchOn=true; watchT=0.52; }
+        }
+      } else if(phase==='repeat'){
+        if(activePad>=0){ litT -= dt; if(litT<=0){ lightPad(activePad,false); activePad=-1; } }
+      } else if(phase==='grown'){
+        pauseT -= dt;
+        if(pauseT<=0 && !over) startWatch();
+      }
+    }
+  };
+})();
+
+/* ============================================================
+   GAME 18 — POCKET POOL
+============================================================ */
+games.pool = (()=>{
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const TABLE_Y = 1.0, HALF_X = 2.15, HALF_Z = 3.7, BALL_R = 0.22, POCKET_R = 0.42;
+  const MAX_PULL = 2.4, POWER_SCALE = 3.6;
+
+  const table = new THREE.Mesh(new THREE.BoxGeometry(HALF_X*2, 0.2, HALF_Z*2), new THREE.MeshLambertMaterial({color:0x2f7a4f}));
+  table.position.y = TABLE_Y - 0.1; table.receiveShadow = true; g.add(table);
+  const railMat = new THREE.MeshLambertMaterial({color:0x6b4a36});
+  [[HALF_X+0.12,0,0.24,HALF_Z*2+0.5],[-HALF_X-0.12,0,0.24,HALF_Z*2+0.5],[0,HALF_Z+0.12,HALF_X*2+0.5,0.24],[0,-HALF_Z-0.12,HALF_X*2+0.5,0.24]]
+    .forEach(([x,z,w,d])=>{ const r=new THREE.Mesh(new THREE.BoxGeometry(w,0.28,d), railMat); r.position.set(x,TABLE_Y,z); g.add(r); });
+
+  const pocketPositions = [[-HALF_X+0.1,-HALF_Z+0.1],[HALF_X-0.1,-HALF_Z+0.1],[-HALF_X+0.1,HALF_Z-0.1],[HALF_X-0.1,HALF_Z-0.1]];
+  pocketPositions.forEach(([x,z])=>{
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(POCKET_R,16), new THREE.MeshBasicMaterial({color:0x120c1a}));
+    hole.rotation.x = -Math.PI/2; hole.position.set(x, TABLE_Y+0.005, z); g.add(hole);
+  });
+
+  const COLORS = {p1:0xf5b85c, p2:0x9fe3c0, cue:0xffffff};
+  function makeBallMesh(owner){
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R,16,14), new THREE.MeshLambertMaterial({color:COLORS[owner]}));
+    mesh.castShadow = true; g.add(mesh); return mesh;
+  }
+  const rackOffsets = [[0,-1.1],[-0.26,-1.56],[0.26,-1.56],[-0.52,-2.02],[0,-2.02],[0.52,-2.02]];
+  const owners = shuffleArr(['p1','p1','p1','p2','p2','p2']);
+  function shuffleArr(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+  let balls = [];
+  function buildBalls(){
+    balls.forEach(b=>g.remove(b.mesh));
+    balls = [];
+    balls.push({pos:new THREE.Vector2(0, HALF_Z*0.55), v:new THREE.Vector2(0,0), r:BALL_R, owner:'cue', pocketed:false, mesh:makeBallMesh('cue')});
+    rackOffsets.forEach((o,i)=>{
+      balls.push({pos:new THREE.Vector2(o[0], o[1]), v:new THREE.Vector2(0,0), r:BALL_R, owner:owners[i], pocketed:false, mesh:makeBallMesh(owners[i])});
+    });
+  }
+
+  const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),
+    new THREE.LineBasicMaterial({color:0xfff7ec, linewidth:2}));
+  aimLine.visible = false; g.add(aimLine);
+  // dragging back to power up a shot easily goes past the table's visible edge —
+  // aim against a much larger invisible plane so the ray never goes missing.
+  const aimPlane = new THREE.Mesh(new THREE.PlaneGeometry(60,60), new THREE.MeshBasicMaterial({visible:false}));
+  aimPlane.rotation.x = -Math.PI/2; aimPlane.position.y = TABLE_Y; g.add(aimPlane);
+  const aimer = makeAimer(aimPlane);
+
+  let phase='count', cd=null, over=false, turn='p1', pocketedThisShot=[];
+
+  function turnMsgs(){
+    setMsgs(turn==='p1'?'Your shot — drag back!':'Waiting…', turn==='p2'?'Your shot — drag back!':'Waiting…', P1.css, P2.css);
+  }
+  function remaining(owner){ return balls.filter(b=>b.owner===owner && !b.pocketed).length; }
+  function resolveShot(){
+    const cue = balls[0];
+    let scratched=false, ownHit=false, oppHit=false;
+    pocketedThisShot.forEach(b=>{
+      if(b.owner==='cue') scratched = true;
+      else if(b.owner===turn) ownHit = true; else oppHit = true;
+    });
+    if(remaining('p1')===0 || remaining('p2')===0){
+      over = true; phase='over';
+      const winner = remaining('p1')===0 ? 'p1' : 'p2';
+      popConfetti(0, TABLE_Y+1.5, 0, 45);
+      setTimeout(()=>showBanner(winner, 'Cleared the table!'), 500);
+      return;
+    }
+    if(scratched){
+      cue.pocketed = false; cue.mesh.visible = true; cue.mesh.scale.setScalar(1);
+      cue.pos.set(0, HALF_Z*0.5); cue.v.set(0,0);
+      turn = otherP(turn);
+    } else if(oppHit){
+      turn = otherP(turn);
+    } else if(!ownHit){
+      turn = otherP(turn);
+    } // else: sunk only own ball(s) — go again, turn stays
+    phase = 'aim'; turnMsgs();
+  }
+
+  return {
+    raycast: true,
+    enter(){
+      g.visible = true; phase='count'; over=false; turn = Math.random()<0.5?'p1':'p2';
+      shuffleArr(owners);
+      buildBalls();
+      camTarget.pos.set(0, 12.5, 3); camTarget.look.set(0, 0, -0.3);
+      setMsgs('Get ready…','Get ready…', P1.css, P2.css);
+      cd = makeCountdown(()=>{ phase='aim'; turnMsgs(); });
+      bannerEl.classList.remove('on');
+    },
+    exit(){ g.visible = false; aimLine.visible=false; },
+    tapXY(x,y){ if(phase==='aim') aimer.down(x,y); },
+    drag(player,x,y){ if(phase==='aim') aimer.move(x,y); },
+    release(player){
+      if(phase!=='aim') return;
+      const pull = aimer.up();
+      aimLine.visible = false;
+      if(!pull) return;
+      const len = Math.min(pull.length(), MAX_PULL);
+      if(len < 0.18) return;
+      const dir = pull.clone().normalize();
+      balls[0].v.set(dir.x*len*POWER_SCALE, dir.y*len*POWER_SCALE);
+      pocketedThisShot = [];
+      phase = 'rolling';
+      setCenter('');
+      AudioMod.tap();
+    },
+    update(dt){
+      if(phase==='count' && cd) cd.update(dt);
+
+      if(phase==='aim' && aimer.active()){
+        const prev = aimer.preview();
+        if(prev){
+          const pull = new THREE.Vector2(prev.from.x-prev.to.x, prev.from.z-prev.to.z);
+          const len = Math.min(pull.length(), MAX_PULL);
+          if(len > 0.1){
+            const dir = pull.clone().normalize();
+            const cue = balls[0];
+            const p0 = new THREE.Vector3(cue.pos.x, TABLE_Y+0.12, cue.pos.y);
+            const p1 = new THREE.Vector3(cue.pos.x+dir.x*len*2.4, TABLE_Y+0.12, cue.pos.y+dir.y*len*2.4);
+            aimLine.geometry.setFromPoints([p0,p1]);
+            aimLine.visible = true;
+          } else aimLine.visible = false;
+        }
+      } else if(phase!=='rolling'){
+        aimLine.visible = false;
+      }
+
+      if(phase==='rolling'){
+        const moving = stepBalls(balls, dt, {
+          friction: 1.7,
+          bounds: {minX:-HALF_X, maxX:HALF_X, minY:-HALF_Z, maxY:HALF_Z},
+          pockets: pocketPositions.map(([x,z])=>({x, y:z, r:POCKET_R*0.85})),
+          onPocket:(b)=>{ b.mesh.visible=false; pocketedThisShot.push(b); AudioMod.glow(); },
+          onClack:()=>{ AudioMod.tap(); }
+        });
+        balls.forEach(b=>{ if(!b.pocketed) b.mesh.position.set(b.pos.x, TABLE_Y+BALL_R, b.pos.y); });
+        if(!moving) resolveShot();
+      }
+    }
+  };
+})();
+
+/* ============================================================
    INPUT — split-screen touch zones
    Bottom half = Player 1 (Honey), top half = Player 2 (Mint).
    Boxy Toe uses raycasting instead (turn-based, shared board).
@@ -1578,7 +2448,7 @@ window.addEventListener('pointerdown', (e)=>{
   if(e.target.closest('#backBtn')) return;
   
   activePointers.set(e.pointerId, (e.clientY > window.innerHeight/2) ? 'p1' : 'p2');
-  if(RAYCAST_MODES.has(mode)){ current.tapXY && current.tapXY(e.clientX, e.clientY); return; }
+  if(RAYCAST_MODES.has(mode) || (current && current.raycast)){ current.tapXY && current.tapXY(e.clientX, e.clientY); return; }
   
   const player = activePointers.get(e.pointerId);
   current && current.tap && current.tap(player, e.clientX, e.clientY);
