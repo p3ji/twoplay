@@ -2,7 +2,7 @@
 
 > Single source of truth for *how to work on this repo*. Claude and Antigravity both read this (`CLAUDE.md` → `@AGENTS.md`; `GEMINI.md` → pointer). Keep it short. *(Auto-generated 2026-07-11; edit freely — re-runs won't overwrite an existing AGENTS.md.)*
 
-**Brain note (goals, backlog, full context):** `H:\My Drive\Brain2\Projects\twoplay.md`
+**Brain note (goals, backlog, full context):** [twoplay.md](file:///H:/My%20Drive/Brain2_backup/Projects/twoplay.md)
 **GitHub:** https://github.com/p3ji/twoplay
 **Stack (detected):** HTML / CSS / JavaScript (static)
 
